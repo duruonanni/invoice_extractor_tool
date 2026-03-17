@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lenovo DaaS Invoice Validator - User Manual</title>
+  <style>
+    :root {
+      --text: #111;
+      --muted: #5b5b5b;
+      --line: #e3e3e3;
+      --accent: #0b5cab;
+      --bg: #ffffff;
+      --card: #f7f9fc;
+    }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      margin: 24px;
+      line-height: 1.5;
+    }
+    h1, h2 {
+      color: var(--text);
+      margin: 0 0 8px 0;
+    }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; margin-top: 24px; }
+    .meta {
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 12px 0;
+    }
+    ul { margin: 8px 0 8px 18px; }
+    .shot {
+      margin: 10px 0 16px 0;
+    }
+    .shot img {
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      display: block;
+    }
+    .caption {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .placeholder {
+      border: 1px dashed var(--line);
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .note {
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <h1>Lenovo DaaS Invoice Validator</h1>
+  <div class="meta">User Manual (Quick Guide) — Version v3.12.3 — 2026-03-18</div>
+
+  <h2>Purpose</h2>
+  <div class="card">
+    This tool validates Lenovo DaaS invoice PDFs by comparing Billing Summary totals,
+    Detail line item totals, and per‑invoice consistency checks. It runs locally in
+    your browser and does not upload files to any server.
+  </div>
+
+  <h2>Requirements</h2>
+  <ul>
+    <li>A modern browser (Chrome or Edge recommended)</li>
+    <li>The file <code>lenovo_invoice_validator.html</code></li>
+    <li>One or more Lenovo invoice PDFs</li>
+  </ul>
+
+  <h2>1) Open the Tool</h2>
+  <p>Double‑click <code>lenovo_invoice_validator.html</code> to open it in your browser.</p>
+  <div class="shot">
+    <img src="manual_assets/step01_open.png" alt="Tool landing page" onerror="this.outerHTML='<div class=&quot;placeholder&quot;>Screenshot placeholder: step01_open.png</div>';" />
+    <div class="caption">Screenshot 1 — Tool landing page</div>
+  </div>
+
+  <h2>2) Select PDF Files</h2>
+  <p>Click <strong>Choose Files</strong> (or <strong>Browse</strong>) and select one or more invoice PDFs.</p>
+  <div class="shot">
+    <img src="manual_assets/step02_select.png" alt="File selection area" onerror="this.outerHTML='<div class=&quot;placeholder&quot;>Screenshot placeholder: step02_select.png</div>';" />
+    <div class="caption">Screenshot 2 — File selection area</div>
+  </div>
+
+  <h2>3) Run Validation</h2>
+  <p>After selection, the tool parses the PDFs automatically. Review:</p>
+  <ul>
+    <li><strong>Billing Summary</strong> (summary totals)</li>
+    <li><strong>Detail Items</strong> (line‑item totals)</li>
+    <li><strong>Validation Messages</strong> (errors and warnings)</li>
+  </ul>
+  <div class="shot">
+    <img src="manual_assets/step03_results.png" alt="Results and validation area" onerror="this.outerHTML='<div class=&quot;placeholder&quot;>Screenshot placeholder: step03_results.png</div>';" />
+    <div class="caption">Screenshot 3 — Results and validation area</div>
+  </div>
+
+  <h2>4) Interpret Results</h2>
+  <ul>
+    <li><strong>OK</strong>: Summary and detail totals match</li>
+    <li><strong>Summary‑only</strong>: Invoice number appears in summary but no detail page found</li>
+    <li><strong>Missing Summary</strong>: Detail lines exist but summary section not found</li>
+    <li><strong>Unreadable/Unsupported</strong>: PDF content could not be extracted</li>
+  </ul>
+  <p class="note">If any invoice is flagged, review the PDF content to confirm whether detail pages exist.</p>
+
+  <h2>5) Troubleshooting</h2>
+  <ul>
+    <li><strong>Unreadable/Unsupported</strong>: The PDF may be scanned or image‑only. Re‑export from the source system.</li>
+    <li><strong>Summary‑only</strong>: The Billing Summary contains invoices with missing detail pages.</li>
+    <li><strong>Totals mismatch</strong>: Check CRF/RDF adjustments, tax exclusions, and currency format.</li>
+  </ul>
+
+  <h2>Tips for Large PDFs</h2>
+  <ul>
+    <li>Allow extra time for parsing</li>
+    <li>Keep the browser tab active</li>
+    <li>If results look incomplete, re‑run the validation</li>
+  </ul>
+
+  <h2>Support</h2>
+  <p>If you need help, provide the PDF filename(s), the exact validation message(s), and a screenshot of the result panel.</p>
+</body>
+</html>
