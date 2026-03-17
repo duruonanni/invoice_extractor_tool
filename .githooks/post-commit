@@ -1,7 +1,9 @@
 #!/bin/sh
-set -e
 
 ROOT="$(git rev-parse --show-toplevel)"
-WINROOT="$(cygpath -w "$ROOT")"
+WINROOT="$(cygpath -w "$ROOT" 2>/dev/null || echo "$ROOT")"
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\scripts\\release_sync.ps1"
+if [ -f "$ROOT/scripts/release_sync.ps1" ]; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\scripts\\release_sync.ps1" \
+    || echo "post-commit: release sync failed (non-blocking)"
+fi
