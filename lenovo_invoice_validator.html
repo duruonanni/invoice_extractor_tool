@@ -973,17 +973,6 @@ fInEl.addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''})
 async function addFiles(fl){
   for(const file of fl){
     if(!file.name.toLowerCase().endsWith('.pdf'))continue;
-    // PH/TH qty-first no-tax (no name)
-    m=rePhNoTaxNN.exec(after);
-    if(m&&pN(m[4])>0){
-      let pname='';
-      for(let j=i-1;j>=Math.max(0,i-2);j--){
-        const prev=lines[j].text.trim();if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev))break;
-        if(!/^\s*[\d,.$%\s]+$/.test(prev)){pname=prev;break;}
-      }
-      items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty:pN(m[1]),up:pN(m[2]),charges:pN(m[3]),tax:0,total:pN(m[4]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});continue;
-    }
     const id=++eid,entry={id,file,name:file.name,size:file.size,country:null,status:'detecting',lines:null};
     fileEntries.push(entry);renderFL();
     try{const lines=await pdfToLines(file);entry.lines=lines;entry.country=detectCountry(lines.slice(0,30).map(l=>l.text).join('\n'),file.name);entry.status='ready'}
