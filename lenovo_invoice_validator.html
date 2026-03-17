@@ -5,7 +5,12 @@
 ║       Lenovo DaaS Invoice Validator — Version History            ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║  │  v3.12.1  |  2026-03-18                                         │
+║  │  │  v3.12.2  |  2026-03-18                                         │
+│  ─────────────────────────────────────────────────────────────  │
+│  [BUG FIX] IN subtotal double-count prevention                  │
+│  • Dedupes Sub-Total/Grand-Total entries per invoice            │
+│                                                                  │
+│  v3.12.1  |  2026-03-18                                         │
 │  ─────────────────────────────────────────────────────────────  │
 │  [BUG FIX] EMEA invoice number detection + $ currency support   │
 │  • Handles multi-line Invoice Number blocks & ODN format        │
@@ -16,7 +21,7 @@
 │  • Internal Ref No detection + Sub-Total→detail fallback        │
 │  [IMPROVE] Summary/detail fallbacks for missing sections        │
 │                                                                  │
-│  v3.11.4  |  2026-03-17                                         │                                         ║
+│  v3.11.4  |  2026-03-17                                         │                                         │                                         ║
 ║  ────────────────────────────────────────────────────────────    ║
 ║  [BUG FIX] parseItemsJP: generalized product ID detection       ║
 ║  • Previously only matched WBD-prefixed product IDs              ║
@@ -370,7 +375,7 @@ tbody tr:hover{background:var(--surface-2)}
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.1';
+const VERSION='3.12.2';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 // ══════════════════════════════════════════════════════════════
@@ -786,6 +791,7 @@ function parseItemsIN(lines,fileName){
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|HSN|SAC/i;
   const curRe=/INR\s*[\d,]+/;
   const subTotRe=/Sub-Total\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/i;
+  const seenTotals=new Set();
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     const iim=ln.match(/Internal\s*Ref\.?\s*No\.?\s*:\s*(\d{7,12})/i);if(iim){curInv=iim[1];continue}
@@ -797,19 +803,21 @@ function parseItemsIN(lines,fileName){
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
     if(/sub[\s-]*total|grand[\s-]*total/i.test(ln)){
       // India PDFs often include totals without line-item product IDs
+      let charges=0,total=0;
       const m=subTotRe.exec(ln);
-      if(m&&curInv){
-        const charges=pN(m[1]);
-        const total=pN(m[5]);
-        const tax=total-charges;
-        items.push({inv:curInv,tranche:curTr,pid:'IN_SUBTOTAL',pname:'Subtotal',qty:1,up:charges,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
-      }else if(curInv){
+      if(m){
+        charges=pN(m[1]);
+        total=pN(m[5]);
+      }else{
         const nums=(ln.match(/[\d,]+\.?\d*/g)||[]).map(pN).filter(n=>n>0);
-        if(nums.length>=2){
-          const charges=nums[0];
-          const total=nums[nums.length-1];
+        if(nums.length>=2){charges=nums[0];total=nums[nums.length-1];}
+      }
+      if(curInv&&total>0){
+        const key=`${curInv}|${charges}|${total}`;
+        if(!seenTotals.has(key)){
           const tax=total-charges;
-          if(total>0)items.push({inv:curInv,tranche:curTr,pid:'IN_SUBTOTAL',pname:'Subtotal',qty:1,up:charges,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+          items.push({inv:curInv,tranche:curTr,pid:'IN_SUBTOTAL',pname:'Subtotal',qty:1,up:charges,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+          seenTotals.add(key);
         }
       }
       continue;
@@ -818,20 +826,20 @@ function parseItemsIN(lines,fileName){
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
     const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
     const reNums=/^\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
-    let m=reFull.exec(after);
-    if(m){
-      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
-      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+    let mm=reFull.exec(after);
+    if(mm){
+      const qty=pN(mm[2]),up=pN(mm[3]),ch=pN(mm[4]),rate=pN(mm[5]),tax=pN(mm[6]),tot=pN(mm[7]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:mm[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
-    m=reNums.exec(after);
-    if(m){
+    mm=reNums.exec(after);
+    if(mm){
       let pname='';
       for(let j=i-1;j>=Math.max(0,i-3);j--){
         const prev=lines[j].text.trim();if(!prev)continue;
         if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
         if(!/^\s*[\d,INR%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
       }
-      const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
+      const qty=pN(mm[1]),up=pN(mm[2]),ch=pN(mm[3]),rate=pN(mm[4]),tax=pN(mm[5]),tot=pN(mm[6]);
       if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
     }
   }
@@ -1301,6 +1309,8 @@ function addSh(wb,data,name){const ws=XLSX.utils.aoa_to_sheet(data),cols=[];
 </script>
 </body>
 </html>
+
+
 
 
 
