@@ -1,4 +1,4 @@
-﻿# Regression Report - 2026-03-18 (v3.12.2)
+# Regression Report - 2026-03-18 (v3.12.4)
 
 Test: `COMPREHENSIVE TEST v3.12.1` on `Input/Approved_Preview_Invoice` (41 PDFs)
 
@@ -19,3 +19,4 @@ Failures
 Notes
 - IN03 PDFs now pass after subtotal dedupe logic.
 - pdf.js emitted repeated warnings about `standardFontDataUrl` not being provided during extraction.
+
