@@ -2,12 +2,188 @@
 <html lang="en">
 <!--
 ╔══════════════════════════════════════════════════════════════════╗
-�?      Lenovo DaaS Invoice Validator �?Version History            �?╠══════════════════════════════════════════════════════════════════╣
-�?                                                                 �?�? v3.11.4  |  2026-03-17                                         �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] parseItemsJP: generalized product ID detection       �?�? �?Previously only matched WBD-prefixed product IDs              �?�? �?New pidRe matches any alphanumeric+underscore ID (5+ chars)  �?�? �?Fixes JP invoice 100464443: 21RLS50S00_AAS, 78809709_AAS,   �?�?   78809715_AAS, 21M4S3EX00_AAS now detected (4 non-WBD items) �?�? �?Regression: all existing JP PDFs still pass                   �?�?                                                                 �?�? v3.11.3  |  2026-03-17                                         �?�? ────────────────────────────────────────────────────────────    �?�? [FEATURE] Non-WBD product ID detection and warning             �?�? �?Comparison table: # column shows (N�? for non-WBD count     �?�? �?Detail Line Items: non-WBD rows highlighted red, PID bold    �?�? �?Validation: warning with per-invoice non-WBD PID listing     �?�?                                                                 �?�? v3.11.2  |  2026-03-17                                         �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] CLP HK 9610500217/9610500219 "Summary Only"         �?�? �?Root cause: skipPages regex /CUSTOMER\s+COPY/i matched       �?�?   HK footer text "Customer Copy of Invoice" �?NOT a Thai       �?�?   copy marker. Pages 11,15 (with WBD data) were skipped.       �?�? �?Fix: skipPages only active when country==='TH'               �?�? �?Reverted v3.11.1 pdfToLines CID change (not needed �?        �?�?   PDF.js Node.js test confirmed no zero-width issue)           �?�? �?Version tag now dynamically set from VERSION constant        �?�?                                                                 �?�? v3.11.0  |  2026-03-16                                         �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] CLP HK invoice detection via collapsed-string       �?�? �?parseItemsGen collapsed-string fallback for knownInvs        �?�? �?(Superseded by v3.11.1 pdfToLines fix)                       �?�?                                                                 �?�? v3.10.0  |  2026-03-16                                         �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] parseItemsGen: robust invoice number detection       �?�? �?Previous regex only matched "Invoice Number XXXXX";          �?�?   CLP HK uses "Tax Invoice No. XXXXX" �?9610500217 and         �?�?   9610500219 were showing as Summary Only                       �?�? �?New regex handles: "Invoice Number", "Invoice No.",          �?�?   "Tax Invoice No." and two-line format (label on one line,    �?�?   number on next line)                                          �?�? �?Converted main loop to indexed for-loop for look-ahead       �?�? �?Fixes CLP_Daas_July25: all 7 HK invoices now matched        �?�?                                                                 �?�? v3.9.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] Grand Total row CRF/RDF-adjusted display             �?�? �?Comparison table Grand Total row was using raw sT.total vs   �?�?   dGT.total, causing spurious Δ for US statements where        �?�?   billing summary Total excludes CRF/RDF                       �?�? �?Grand Total row now uses sT.charges+sT.tax+dGT.crfRdf as    �?�?   SUM reference, consistent with per-invoice comparison        �?�? �?Fixes EPREUSP0001864 (Δ 124.72) & EPREUSP0001923 (Δ 14.00) �?�?                                                                 �?�? [BUG FIX] pdfToLines smart character spacing                   �?�? �?Some PDFs (e.g., HK CLP) encode text char-by-char; joining  �?�?   with space produced "W B D 0 A 4 3 9 6 3" breaking WBD       �?�?   detection. Now uses it.width to measure visual gap; only     �?�?   inserts space between items when gap > 1 pt                  �?�? �?Fixes HK 9610500217 / 9610500219 showing as Summary Only    �?�?                                                                 �?�? [BUG FIX] parseItemsGen reNN fallback for no-name WBD items    �?�? �?AU/HK WBD items with no product name text (e.g.,            �?�?   "WBD0A68857 12.00 $ 44.79 $ 537.48 10.00% ...") failed      �?�?   all existing patterns; new reNN regex matches qty-first      �?�? �?Fixes AU04 EAUP0000932 Δ 72,537.41                          �?�? �?Fixes HK 9610500213 Δ 9,213.00                              �?�?                                                                 �?�? v3.8.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] TH duplicate copy triple-counting                     �?�? �?TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/        �?�?   BILLING COPY) �?parseItemsGen now skips CUSTOMER COPY &       �?�?   BILLING COPY pages, only parsing ORIGINAL COPY pages          �?�? �?Fixes EPRETHP0000430: DET values were 3× SUM values           �?�?                                                                 �?�? [BUG FIX] CRF/RDF false delta in comparison                     �?�? �?US billing summary Total column = charges + tax only;         �?�?   individual invoice pages include CRF/RDF in Grand Total       �?�? �?Comparison now uses charges+tax+(DET crfRdf) as SUM ref       �?�?   so CRF/RDF from invoice pages is not flagged as Δ             �?�? �?Fixes EPREUSP0001923 invoice 100353391: Δ $5 CRF/RDF          �?�?                                                                 �?�? v3.7.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] CH invoice number: two-line format support            �?�? �?CH PDF: "Invoice Number  Invoice Date  Customer Number"       �?�?   header on one line, number (e.g. 100426279) on next line      �?�? �?parseItemsCH: peek at next line when Invoice Number header    �?�?   has no digits �?sets curInv �?Detail items now mapped         �?�? �?Fixes EPRECHP0000220 Summary Only / Detail Only mismatch      �?�?                                                                 �?�? v3.6.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] Product name completeness �?look-forward strategy     �?�? �?JP reFull: look-back 1 line (prefix) + look-forward 1 line   �?�?   e.g. "Japan With Autopilot VAIO Pro Fine Black.../1TB/11P"   �?�? �?JP reNums: look-back 2 lines + look-forward 2 lines          �?�?   e.g. "Individual Order - Japan ThinkCentre... Core�?i5..."   �?�? �?US reNums: look-forward 1 line suffix e.g. "512G US"         �?�? �?CH reNums: look-forward 1 line suffix e.g. "1151/Swiss"      �?�?                                                                 �?�? v3.5.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [FEATURE] Switzerland (CH) support �?EPRECHP* PDFs             �?�? �?New parseItemsCH: CHF currency, decimal qty, 8.10% VAT        �?�? �?Full + numbers-only look-back patterns (same as JP/US)        �?�? �?detectCountry: CH/EPRECHP filename + CHF/Schweiz text cues    �?�? �?parseBillingSummary: CHF pattern added                        �?�? �?CM map: 🇨🇭 Switzerland / CHF added                          �?�? �?detectCountry: tightened all rules with EPRE* regex           �?�?                                                                 �?�? v3.4.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [FEATURE] Smart Export filename                                  �?�? �?Format: {stmtNum}_{lang}_Invoice_Validator_Export_{date}.xlsx �?�? �?e.g. EPREJPP0000568_JA_Invoice_Validator_Export_20260316.xlsx �?�? �?lang extracted from source filename suffix (_JA, _EN, etc.)   �?�?                                                                 �?�? v3.3.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] parseItemsJP: multi-line product name support         �?�? �?Look-back strategy (same as US v3.1.0) for WBD lines with    �?�?   no product name on same line (product name on prior lines)    �?�? �?Fixes EPREJPP0000568 Invoice 100464452 WBD0B01541 (¥6,690)   �?�?                                                                 �?�? v3.2.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [UI] Lenovo official brand color scheme                         �?�? �?Header: Deep Navy (#11184F) + Lenovo Red accent bar           �?�? �?Primary accent: Lenovo Signature Red (#E1251B)                �?�? �?Table headers: Navy (#11184F) + Red bottom border             �?�? �?Country-level hierarchy rows: Navy left border                �?�? �?Status colors: Pale Red (#F0C7BF), Mid Red 2 (#F26A52)        �?�? �?Text: Black (#1E0013) / Deep Gray (#4E444E) / Mid Gray        �?�?                                                                 �?�? v3.1.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [BUG FIX] parseItemsUS: multi-line product name support         �?�? �?Look-back strategy: when WBD line has no product name,        �?�?   scan up to 3 prior lines to reconstruct product name          �?�? �?Prevents misparse / dropped items for wrapped product names   �?�? �?Fixes EPREUSP0000988 (100125197-201) and similar US PDFs      �?�?                                                                 �?�? v3.0.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? [MAJOR REWRITE �?UI / i18n / Parsers / Hierarchy]               �?�? Features:                                                       �?�? �?Light theme inspired by Claude's default color palette        �?�? �?Multi-language UI: English, 中文, Español (header switcher)   �?�? �?Independent parsers per country (parseJP, parseUS, parseGen)  �?�? �?Source file + page tracking on every line item                �?�? �?Hierarchy tree view: Country �?Customer �?Period �?Tranche    �?�? �?Collapsible tree with per-level stats aggregation             �?�? Bug fixes:                                                      �?�? �?Improved pdfToLines to return page numbers per line           �?�? �?Parser architecture now extensible per-country                �?�?                                                                 �?�? v2.0.0  |  2026-03-16                                          �?�? ────────────────────────────────────────────────────────────    �?�? �?Hierarchy: Country �?Customer �?Statement                     �?�? �?Summary �?Detail comparison with unmapped invoice detection   �?�? �?Version tracking system, manual Run button + progress bar     �?�? �?Country group cards, tab navigation, Excel 5-sheet export     �?�?                                                                 �?�? v1.4.0  |  2026-03-16  [BUG FIX]                               �?�? �?US Billing Summary 5-col fix (CRF/RDF misparse)              �?�? �?US Line Items Pattern D (no % column)                         �?�?                                                                 �?�? v1.3.0  |  2026-03-16                                          �?�? �?Full WBD line-item parsing, Y-coordinate line reconstruction  �?�? �?Multi-pattern regex (AU/HK $+%, JP ¥+%, TH no-symbol)        �?�?                                                                 �?�? v1.0.0  |  2026-03-16  �?Initial release                       �?╚══════════════════════════════════════════════════════════════════╝
+║       Lenovo DaaS Invoice Validator — Version History            ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  v3.11.4  |  2026-03-17                                         ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] parseItemsJP: generalized product ID detection       ║
+║  • Previously only matched WBD-prefixed product IDs              ║
+║  • New pidRe matches any alphanumeric+underscore ID (5+ chars)  ║
+║  • Fixes JP invoice 100464443: 21RLS50S00_AAS, 78809709_AAS,   ║
+║    78809715_AAS, 21M4S3EX00_AAS now detected (4 non-WBD items) ║
+║  • Regression: all existing JP PDFs still pass                   ║
+║                                                                  ║
+║  v3.11.3  |  2026-03-17                                         ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [FEATURE] Non-WBD product ID detection and warning             ║
+║  • Comparison table: # column shows (N⚠) for non-WBD count     ║
+║  • Detail Line Items: non-WBD rows highlighted red, PID bold    ║
+║  • Validation: warning with per-invoice non-WBD PID listing     ║
+║                                                                  ║
+║  v3.11.2  |  2026-03-17                                         ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] CLP HK 9610500217/9610500219 "Summary Only"         ║
+║  • Root cause: skipPages regex /CUSTOMER\s+COPY/i matched       ║
+║    HK footer text "Customer Copy of Invoice" — NOT a Thai       ║
+║    copy marker. Pages 11,15 (with WBD data) were skipped.       ║
+║  • Fix: skipPages only active when country==='TH'               ║
+║  • Reverted v3.11.1 pdfToLines CID change (not needed —         ║
+║    PDF.js Node.js test confirmed no zero-width issue)           ║
+║  • Version tag now dynamically set from VERSION constant        ║
+║                                                                  ║
+║  v3.11.0  |  2026-03-16                                         ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] CLP HK invoice detection via collapsed-string       ║
+║  • parseItemsGen collapsed-string fallback for knownInvs        ║
+║  • (Superseded by v3.11.1 pdfToLines fix)                       ║
+║                                                                  ║
+║  v3.10.0  |  2026-03-16                                         ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] parseItemsGen: robust invoice number detection       ║
+║  • Previous regex only matched "Invoice Number XXXXX";          ║
+║    CLP HK uses "Tax Invoice No. XXXXX" → 9610500217 and         ║
+║    9610500219 were showing as Summary Only                       ║
+║  • New regex handles: "Invoice Number", "Invoice No.",          ║
+║    "Tax Invoice No." and two-line format (label on one line,    ║
+║    number on next line)                                          ║
+║  • Converted main loop to indexed for-loop for look-ahead       ║
+║  • Fixes CLP_Daas_July25: all 7 HK invoices now matched        ║
+║                                                                  ║
+║  v3.9.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] Grand Total row CRF/RDF-adjusted display             ║
+║  • Comparison table Grand Total row was using raw sT.total vs   ║
+║    dGT.total, causing spurious Δ for US statements where        ║
+║    billing summary Total excludes CRF/RDF                       ║
+║  • Grand Total row now uses sT.charges+sT.tax+dGT.crfRdf as    ║
+║    SUM reference, consistent with per-invoice comparison        ║
+║  • Fixes EPREUSP0001864 (Δ 124.72) & EPREUSP0001923 (Δ 14.00) ║
+║                                                                  ║
+║  [BUG FIX] pdfToLines smart character spacing                   ║
+║  • Some PDFs (e.g., HK CLP) encode text char-by-char; joining  ║
+║    with space produced "W B D 0 A 4 3 9 6 3" breaking WBD       ║
+║    detection. Now uses it.width to measure visual gap; only     ║
+║    inserts space between items when gap > 1 pt                  ║
+║  • Fixes HK 9610500217 / 9610500219 showing as Summary Only    ║
+║                                                                  ║
+║  [BUG FIX] parseItemsGen reNN fallback for no-name WBD items    ║
+║  • AU/HK WBD items with no product name text (e.g.,            ║
+║    "WBD0A68857 12.00 $ 44.79 $ 537.48 10.00% ...") failed      ║
+║    all existing patterns; new reNN regex matches qty-first      ║
+║  • Fixes AU04 EAUP0000932 Δ 72,537.41                          ║
+║  • Fixes HK 9610500213 Δ 9,213.00                              ║
+║                                                                  ║
+║  v3.8.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] TH duplicate copy triple-counting                     ║
+║  • TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/        ║
+║    BILLING COPY) — parseItemsGen now skips CUSTOMER COPY &       ║
+║    BILLING COPY pages, only parsing ORIGINAL COPY pages          ║
+║  • Fixes EPRETHP0000430: DET values were 3× SUM values           ║
+║                                                                  ║
+║  [BUG FIX] CRF/RDF false delta in comparison                     ║
+║  • US billing summary Total column = charges + tax only;         ║
+║    individual invoice pages include CRF/RDF in Grand Total       ║
+║  • Comparison now uses charges+tax+(DET crfRdf) as SUM ref       ║
+║    so CRF/RDF from invoice pages is not flagged as Δ             ║
+║  • Fixes EPREUSP0001923 invoice 100353391: Δ $5 CRF/RDF          ║
+║                                                                  ║
+║  v3.7.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] CH invoice number: two-line format support            ║
+║  • CH PDF: "Invoice Number  Invoice Date  Customer Number"       ║
+║    header on one line, number (e.g. 100426279) on next line      ║
+║  • parseItemsCH: peek at next line when Invoice Number header    ║
+║    has no digits → sets curInv → Detail items now mapped         ║
+║  • Fixes EPRECHP0000220 Summary Only / Detail Only mismatch      ║
+║                                                                  ║
+║  v3.6.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] Product name completeness — look-forward strategy     ║
+║  • JP reFull: look-back 1 line (prefix) + look-forward 1 line   ║
+║    e.g. "Japan With Autopilot VAIO Pro Fine Black.../1TB/11P"   ║
+║  • JP reNums: look-back 2 lines + look-forward 2 lines          ║
+║    e.g. "Individual Order - Japan ThinkCentre... Core™ i5..."   ║
+║  • US reNums: look-forward 1 line suffix e.g. "512G US"         ║
+║  • CH reNums: look-forward 1 line suffix e.g. "1151/Swiss"      ║
+║                                                                  ║
+║  v3.5.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [FEATURE] Switzerland (CH) support — EPRECHP* PDFs             ║
+║  • New parseItemsCH: CHF currency, decimal qty, 8.10% VAT        ║
+║  • Full + numbers-only look-back patterns (same as JP/US)        ║
+║  • detectCountry: CH/EPRECHP filename + CHF/Schweiz text cues    ║
+║  • parseBillingSummary: CHF pattern added                        ║
+║  • CM map: 🇨🇭 Switzerland / CHF added                          ║
+║  • detectCountry: tightened all rules with EPRE* regex           ║
+║                                                                  ║
+║  v3.4.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [FEATURE] Smart Export filename                                  ║
+║  • Format: {stmtNum}_{lang}_Invoice_Validator_Export_{date}.xlsx ║
+║  • e.g. EPREJPP0000568_JA_Invoice_Validator_Export_20260316.xlsx ║
+║  • lang extracted from source filename suffix (_JA, _EN, etc.)   ║
+║                                                                  ║
+║  v3.3.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] parseItemsJP: multi-line product name support         ║
+║  • Look-back strategy (same as US v3.1.0) for WBD lines with    ║
+║    no product name on same line (product name on prior lines)    ║
+║  • Fixes EPREJPP0000568 Invoice 100464452 WBD0B01541 (¥6,690)   ║
+║                                                                  ║
+║  v3.2.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [UI] Lenovo official brand color scheme                         ║
+║  • Header: Deep Navy (#11184F) + Lenovo Red accent bar           ║
+║  • Primary accent: Lenovo Signature Red (#E1251B)                ║
+║  • Table headers: Navy (#11184F) + Red bottom border             ║
+║  • Country-level hierarchy rows: Navy left border                ║
+║  • Status colors: Pale Red (#F0C7BF), Mid Red 2 (#F26A52)        ║
+║  • Text: Black (#1E0013) / Deep Gray (#4E444E) / Mid Gray        ║
+║                                                                  ║
+║  v3.1.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [BUG FIX] parseItemsUS: multi-line product name support         ║
+║  • Look-back strategy: when WBD line has no product name,        ║
+║    scan up to 3 prior lines to reconstruct product name          ║
+║  • Prevents misparse / dropped items for wrapped product names   ║
+║  • Fixes EPREUSP0000988 (100125197-201) and similar US PDFs      ║
+║                                                                  ║
+║  v3.0.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  [MAJOR REWRITE — UI / i18n / Parsers / Hierarchy]               ║
+║  Features:                                                       ║
+║  • Light theme inspired by Claude's default color palette        ║
+║  • Multi-language UI: English, 中文, Español (header switcher)   ║
+║  • Independent parsers per country (parseJP, parseUS, parseGen)  ║
+║  • Source file + page tracking on every line item                ║
+║  • Hierarchy tree view: Country → Customer → Period → Tranche    ║
+║  • Collapsible tree with per-level stats aggregation             ║
+║  Bug fixes:                                                      ║
+║  • Improved pdfToLines to return page numbers per line           ║
+║  • Parser architecture now extensible per-country                ║
+║                                                                  ║
+║  v2.0.0  |  2026-03-16                                          ║
+║  ────────────────────────────────────────────────────────────    ║
+║  • Hierarchy: Country → Customer → Statement                     ║
+║  • Summary ↔ Detail comparison with unmapped invoice detection   ║
+║  • Version tracking system, manual Run button + progress bar     ║
+║  • Country group cards, tab navigation, Excel 5-sheet export     ║
+║                                                                  ║
+║  v1.4.0  |  2026-03-16  [BUG FIX]                               ║
+║  • US Billing Summary 5-col fix (CRF/RDF misparse)              ║
+║  • US Line Items Pattern D (no % column)                         ║
+║                                                                  ║
+║  v1.3.0  |  2026-03-16                                          ║
+║  • Full WBD line-item parsing, Y-coordinate line reconstruction  ║
+║  • Multi-pattern regex (AU/HK $+%, JP ¥+%, TH no-symbol)        ║
+║                                                                  ║
+║  v1.0.0  |  2026-03-16  — Initial release                       ║
+╚══════════════════════════════════════════════════════════════════╝
 -->
 <head>
 <meta charset="UTF-8">
-<!-- v3.12.4 | 2026-03-18 | Detail pages missing flagged as error with invoice list -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lenovo DaaS Invoice Validator v3.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -164,12 +340,12 @@ tbody tr:hover{background:var(--surface-2)}
   <div class="drop-zone" id="dz">
     <div class="icon">📄</div>
     <h3 data-t="drop_title">Drop Lenovo DaaS invoice PDFs here, or click to select</h3>
-    <p data-t="drop_sub">Supports AU · HK · JP · TH · US �?Multiple files allowed</p>
+    <p data-t="drop_sub">Supports AU · HK · JP · TH · US — Multiple files allowed</p>
     <input type="file" id="fIn" accept=".pdf" multiple>
   </div>
   <div class="fl" id="fList"></div>
   <div class="acts" id="aBar" style="display:none">
-    <button class="btn btn-p" id="runBtn" onclick="runAll()" disabled data-t="run_btn">�?Run Verification</button>
+    <button class="btn btn-p" id="runBtn" onclick="runAll()" disabled data-t="run_btn">▶ Run Verification</button>
     <button class="btn" onclick="doExport()" id="exBtn" style="display:none" data-t="export_btn">📥 Export Excel</button>
     <button class="btn" onclick="clearAll()" data-t="clear_btn">🗑 Clear All</button>
   </div>
@@ -190,9 +366,9 @@ document.getElementById('verTag').textContent='v'+VERSION;
 // i18n
 // ══════════════════════════════════════════════════════════════
 const I={
-en:{title:'Lenovo DaaS Invoice Validator',drop_title:'Drop Lenovo DaaS invoice PDFs here, or click to select',drop_sub:'Supports 31 Sales Orgs (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) �?Multiple files allowed',run_btn:'�?Run Verification',export_btn:'📥 Export Excel',clear_btn:'🗑 Clear All',results_by:'Results by Country / Region',stmts:'Statements',invoices:'Invoices',items:'Line Items',unmapped:'Unmapped',issues:'Issues',matched:'Matched',sum_only:'Detail Pages Missing',det_only:'Detail Only',comparison:'Summary �?Detail Comparison',hierarchy:'Hierarchy',all_errors:'All Errors',billing_sum:'Billing Summary',detail_items:'Detail Line Items',validation:'Validation',checks:'checks',grand_total:'GRAND TOTAL',invoice:'Invoice',status:'Status',charges:'Charges',tax:'Tax',total:'Total',diff:'Diff',match:'Match',qty:'Qty',unit_price:'Unit Price',product:'Product',name:'Name',tranche:'Tranche',file:'File',page:'Page',no_items:'No line items found',detecting:'Detecting�?,parsing:'parsing�?,starting:'Starting�?,rendering:'Rendering�?,done:'Done',ok:'OK',error:'ERROR',pass:'PASS',fail:'FAIL'},
-zh:{title:'联想 DaaS 发票验证工具',drop_title:'�?Lenovo DaaS 发票 PDF 拖放到此处，或点击选择',drop_sub:'支持31个销售组�?(AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) �?可同时上传多个文�?,run_btn:'�?开始验�?,export_btn:'📥 导出 Excel',clear_btn:'🗑 清空全部',results_by:'按国�?地区分组',stmts:'账单',invoices:'发票',items:'行项�?,unmapped:'未匹�?,issues:'问题',matched:'已匹�?,sum_only:'明细页缺�?,det_only:'仅在明细',comparison:'汇�?�?明细 对比',hierarchy:'层级视图',all_errors:'全部错误',billing_sum:'账单汇�?,detail_items:'明细行项�?,validation:'验证检�?,checks:'项检�?,grand_total:'合计',invoice:'发票�?,status:'状�?,charges:'费用',tax:'税额',total:'总额',diff:'差异',match:'匹配',qty:'数量',unit_price:'单价',product:'产品编码',name:'产品名称',tranche:'Tranche',file:'文件',page:'页码',no_items:'未找到行项目',detecting:'检测中�?,parsing:'解析中�?,starting:'启动中�?,rendering:'渲染中�?,done:'完成',ok:'正常',error:'错误',pass:'通过',fail:'不通过'},
-es:{title:'Validador de Facturas Lenovo DaaS',drop_title:'Arrastre archivos PDF de facturas Lenovo DaaS aquí, o haga clic para seleccionar',drop_sub:'Soporta 31 Orgs de Ventas (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) �?Se permiten múltiples archivos',run_btn:'�?Ejecutar Verificación',export_btn:'📥 Exportar Excel',clear_btn:'🗑 Limpiar Todo',results_by:'Resultados por País / Región',stmts:'Declaraciones',invoices:'Facturas',items:'Líneas',unmapped:'Sin coincidencia',issues:'Problemas',matched:'Coincidente',sum_only:'Faltan páginas de detalle',det_only:'Solo en Detalle',comparison:'Resumen �?Detalle Comparación',hierarchy:'Jerarquía',all_errors:'Todos los Errores',billing_sum:'Resumen de Facturación',detail_items:'Líneas de Detalle',validation:'Validación',checks:'verificaciones',grand_total:'TOTAL GENERAL',invoice:'Factura',status:'Estado',charges:'Cargos',tax:'Impuesto',total:'Total',diff:'Dif.',match:'Coincide',qty:'Cant.',unit_price:'Precio Unit.',product:'Producto',name:'Nombre',tranche:'Tranche',file:'Archivo',page:'Página',no_items:'No se encontraron líneas de detalle',detecting:'Detectando�?,parsing:'analizando�?,starting:'Iniciando�?,rendering:'Renderizando�?,done:'Listo',ok:'OK',error:'ERROR',pass:'APROBADO',fail:'FALLIDO'}
+en:{title:'Lenovo DaaS Invoice Validator',drop_title:'Drop Lenovo DaaS invoice PDFs here, or click to select',drop_sub:'Supports 31 Sales Orgs (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — Multiple files allowed',run_btn:'▶ Run Verification',export_btn:'📥 Export Excel',clear_btn:'🗑 Clear All',results_by:'Results by Country / Region',stmts:'Statements',invoices:'Invoices',items:'Line Items',unmapped:'Unmapped',issues:'Issues',matched:'Matched',sum_only:'Detail Pages Missing',det_only:'Detail Only',comparison:'Summary ↔ Detail Comparison',hierarchy:'Hierarchy',all_errors:'All Errors',billing_sum:'Billing Summary',detail_items:'Detail Line Items',validation:'Validation',checks:'checks',grand_total:'GRAND TOTAL',invoice:'Invoice',status:'Status',charges:'Charges',tax:'Tax',total:'Total',diff:'Diff',match:'Match',qty:'Qty',unit_price:'Unit Price',product:'Product',name:'Name',tranche:'Tranche',file:'File',page:'Page',no_items:'No line items found',detecting:'Detecting…',parsing:'parsing…',starting:'Starting…',rendering:'Rendering…',done:'Done',ok:'OK',error:'ERROR',pass:'PASS',fail:'FAIL'},
+zh:{title:'联想 DaaS 发票验证工具',drop_title:'将 Lenovo DaaS 发票 PDF 拖放到此处，或点击选择',drop_sub:'支持31个销售组织 (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — 可同时上传多个文件',run_btn:'▶ 开始验证',export_btn:'📥 导出 Excel',clear_btn:'🗑 清空全部',results_by:'按国家/地区分组',stmts:'账单',invoices:'发票',items:'行项目',unmapped:'未匹配',issues:'问题',matched:'已匹配',sum_only:'仅在汇总',det_only:'仅在明细',comparison:'汇总 ↔ 明细 对比',hierarchy:'层级视图',all_errors:'全部错误',billing_sum:'账单汇总',detail_items:'明细行项目',validation:'验证检查',checks:'项检查',grand_total:'合计',invoice:'发票号',status:'状态',charges:'费用',tax:'税额',total:'总额',diff:'差异',match:'匹配',qty:'数量',unit_price:'单价',product:'产品编码',name:'产品名称',tranche:'Tranche',file:'文件',page:'页码',no_items:'未找到行项目',detecting:'检测中…',parsing:'解析中…',starting:'启动中…',rendering:'渲染中…',done:'完成',ok:'正常',error:'错误',pass:'通过',fail:'不通过'},
+es:{title:'Validador de Facturas Lenovo DaaS',drop_title:'Arrastre archivos PDF de facturas Lenovo DaaS aquí, o haga clic para seleccionar',drop_sub:'Soporta 31 Orgs de Ventas (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — Se permiten múltiples archivos',run_btn:'▶ Ejecutar Verificación',export_btn:'📥 Exportar Excel',clear_btn:'🗑 Limpiar Todo',results_by:'Resultados por País / Región',stmts:'Declaraciones',invoices:'Facturas',items:'Líneas',unmapped:'Sin coincidencia',issues:'Problemas',matched:'Coincidente',sum_only:'Solo en Resumen',det_only:'Solo en Detalle',comparison:'Resumen ↔ Detalle Comparación',hierarchy:'Jerarquía',all_errors:'Todos los Errores',billing_sum:'Resumen de Facturación',detail_items:'Líneas de Detalle',validation:'Validación',checks:'verificaciones',grand_total:'TOTAL GENERAL',invoice:'Factura',status:'Estado',charges:'Cargos',tax:'Impuesto',total:'Total',diff:'Dif.',match:'Coincide',qty:'Cant.',unit_price:'Precio Unit.',product:'Producto',name:'Nombre',tranche:'Tranche',file:'Archivo',page:'Página',no_items:'No se encontraron líneas de detalle',detecting:'Detectando…',parsing:'analizando…',starting:'Iniciando…',rendering:'Renderizando…',done:'Listo',ok:'OK',error:'ERROR',pass:'APROBADO',fail:'FALLIDO'}
 };
 let curLang='en';
 function t(k){return I[curLang][k]||I.en[k]||k}
@@ -205,7 +381,7 @@ const CM={AT:{flag:'🇦🇹',label:'Austria',cur:'EUR'},AU:{flag:'🇦🇺',lab
 let fileEntries=[],eid=0,analysisResults=null;
 const pN=s=>s?parseFloat(String(s).replace(/,/g,''))||0:0;
 function fc(n,c){
-  const sym={JPY:'¥',EUR:'�?,GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'�?,INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'�?,HKD:'HK$',USD:'$'};
+  const sym={JPY:'¥',EUR:'€',GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'₩',INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'฿',HKD:'HK$',USD:'$'};
   const s=sym[c]||'';const noD=c==='JPY'||c==='KRW';
   return s+(noD?Math.round(n).toLocaleString():n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
 }
@@ -213,7 +389,7 @@ function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 // ══════════════════════════════════════════════════════════════
-// PDF �?lines WITH PAGE TRACKING
+// PDF → lines WITH PAGE TRACKING
 // ══════════════════════════════════════════════════════════════
 async function pdfToLines(file){
   const buf=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,out=[];
@@ -243,10 +419,10 @@ function detectCountry(text,fn){
   // Primary: filename pattern EPRE{XX}P (e.g. EPREATP, EPREUSP) or {XX}nn_ prefix
   const fm=fn.match(/EPRE([A-Z]{2})P/i)||fn.match(/^([A-Z]{2})\d+_/i);
   if(fm){const cc=fm[1].toUpperCase();if(CM[cc])return cc;}
-  // Special: CLP prefix �?HK (CLP HK invoices)
+  // Special: CLP prefix → HK (CLP HK invoices)
   if(fn.includes('CLP'))return'HK';
   // Fallback: content-based detection
-  if(text.includes('レノ�?)||text.includes('JPY'))return'JP';
+  if(text.includes('レノボ')||text.includes('JPY'))return'JP';
   if(text.includes('Schweiz')||text.includes('CHF'))return'CH';
   if(text.includes('Hong Kong')||text.includes('HKD'))return'HK';
   if(text.includes('GST')&&text.includes('AUD'))return'AU';
@@ -256,7 +432,7 @@ function detectCountry(text,fn){
   if(/\bRM\s/.test(text))return'MY';
   if(/\bSEK\b/.test(text))return'SE';
   if(/\bGBP\b/.test(text))return'GB';
-  if(/�?.test(text))return'AT'; // generic EUR fallback
+  if(/€/.test(text))return'AT'; // generic EUR fallback
   if(text.includes('USD'))return'US';
   return'OTHER';
 }
@@ -284,7 +460,7 @@ function parseBillingSummary(text){
       res.push({inv:num,charges:ch,tax:tx,total:tot,crf:ehf,rdf:0});
   }
   if(res.length)return res;
-  // Currency symbol patterns: $ ¥ �?CHF GBP SEK �?INR RM
+  // Currency symbol patterns: $ ¥ € CHF GBP SEK ₩ INR RM
   const curSym='(?:\\$|[¥￥]|€|CHF|GBP|SEK|₩|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
   // 3-col with currency: inv CUR charges CUR tax CUR total
   const p3c=new RegExp('(\\d{7,12})\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)','g');
@@ -310,7 +486,7 @@ function parseBillingSummary(text){
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
   }
   if(res.length)return res;
-  // KRW integer (no decimals): inv �?charges �?tax �?total
+  // KRW integer (no decimals): inv ₩ charges ₩ tax ₩ total
   const pKR=/(\d{7,12})\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)/g;
   while((m=pKR.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
@@ -333,9 +509,9 @@ function parseBillingSummary(text){
 function parseHeader(lines){
   const h={stmtNum:'',date:'',custName:'',custNum:'',period:''};
   for(const {text:ln} of lines){
-    if(!h.stmtNum){const m=ln.match(/(?:Statement\s*Number|明細書番�?[:\s]*([A-Z0-9]+)/i);if(m)h.stmtNum=m[1]}
-    if(!h.date){const m=ln.match(/(?:Date|明細書日�?[:\s]*([\d\/\-.]+)/i);if(m)h.date=m[1]}
-    if(!h.custNum){const m=ln.match(/(?:Sold[\s-]*To|Customer\s*Number|お客様番�?[:\s]*([\d]+)/i);if(m)h.custNum=m[1]}
+    if(!h.stmtNum){const m=ln.match(/(?:Statement\s*Number|明細書番号)[:\s]*([A-Z0-9]+)/i);if(m)h.stmtNum=m[1]}
+    if(!h.date){const m=ln.match(/(?:Date|明細書日付)[:\s]*([\d\/\-.]+)/i);if(m)h.date=m[1]}
+    if(!h.custNum){const m=ln.match(/(?:Sold[\s-]*To|Customer\s*Number|お客様番号)[:\s]*([\d]+)/i);if(m)h.custNum=m[1]}
     if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period|請求対象期間)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
   }
   for(let i=0;i<Math.min(lines.length,30);i++){
@@ -385,7 +561,7 @@ function parseItemsJP(lines,fileName){
         continue;
       }
     }
-    // Fallback: numbers-only �?look back up to 2 lines + look-forward up to 2 lines
+    // Fallback: numbers-only → look back up to 2 lines + look-forward up to 2 lines
     m=reNums.exec(after);
     if(m){
       let pname='';
@@ -404,7 +580,7 @@ function parseItemsJP(lines,fileName){
   return items;
 }
 
-// ── US/CA Parser (5-col $: charges, tax, CRF, RDF, total �?supports non-WBD product IDs) ──
+// ── US/CA Parser (5-col $: charges, tax, CRF, RDF, total — supports non-WBD product IDs) ──
 function parseItemsUS(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore
@@ -428,7 +604,7 @@ function parseItemsUS(lines,fileName){
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),tax=pN(m[5]),crf=pN(m[6]),tot=pN(m[7]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,crfRdf:crf,srcFile:fileName,srcPage:page});continue;}
     }
-    // Fallback: numbers-only �?look back up to 3 lines + look-forward 1 line for suffix
+    // Fallback: numbers-only → look back up to 3 lines + look-forward 1 line for suffix
     m=reNums.exec(after);
     if(m){
       let pname='';
@@ -446,7 +622,7 @@ function parseItemsUS(lines,fileName){
   return items;
 }
 
-// ── CH Parser (Switzerland �?CHF, decimal qty, 8.10% VAT) ──
+// ── CH Parser (Switzerland — CHF, decimal qty, 8.10% VAT) ──
 function parseItemsCH(lines,fileName){
   const items=[];let curInv='',curTr='';
   // Full pattern: product name + qty + CHF up + CHF charges + rate% + CHF tax + CHF total
@@ -458,9 +634,9 @@ function parseItemsCH(lines,fileName){
     // Invoice Number: same line ("Invoice Number: 100426279") or next line (CH PDF style)
     const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
-    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)){
-      // CH: "Invoice Number  Invoice Date  Customer Number" �?number on next line
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\\d{6,}|\\d{7,12})/));if(pm)curInv=pm[1];}
+    if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
+      // CH: "Invoice Number  Invoice Date  Customer Number" → number on next line
+      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
@@ -491,26 +667,26 @@ function parseItemsCH(lines,fileName){
   return items;
 }
 
-// ── EMEA Parser (AT/BE/DE/ES/FR/GB/GR/IE/IT/NL/PT/SE �?EUR/GBP/SEK with non-WBD support) ──
+// ── EMEA Parser (AT/BE/DE/ES/FR/GB/GR/IE/IT/NL/PT/SE — EUR/GBP/SEK with non-WBD support) ──
 function parseItemsEMEA(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore (e.g. 21FBSDGX0L_AAS, 78722528_AAS)
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  // Currency: �? GBP, SEK (flexible)
-  const curRe=/(?:€|GBP|SEK|\$)\s*[\d,]+/;
+  // Currency: €, GBP, SEK (flexible)
+  const curRe=/(?:€|GBP|SEK)\s*[\d,]+/;
   // Full: pname qty CUR up CUR charges rate% CUR tax CUR total
-  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)/;
+  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)/;
   // Numbers-only: qty CUR up CUR charges rate% CUR tax CUR total
-  const reNums=/^\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK|\$)\s*([\d,]+\.?\d*)/;
+  const reNums=/^\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)/;
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     // Invoice Number (or "Rechnungsnummer" for DE)
-    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN)[:\s]*([A-Z]{2,}\d{6,}|\d{7,12})/i);
+    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Numéro\s*de\s*facture|Numero\s*fattura|Factuurnummer|Número\s*de\s*factura|Αριθμός\s*τιμολογίου)[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     // Two-line invoice number
-    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\\d{6,}|\\d{7,12})/));if(pm)curInv=pm[1];}
+    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)) {
+      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})//^(\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
@@ -540,12 +716,12 @@ function parseItemsEMEA(lines,fileName){
   return items;
 }
 
-// ── KR Parser (South Korea �?�?/ $ with Korean labels) ──
+// ── KR Parser (South Korea — ₩ / $ with Korean labels) ──
 function parseItemsKR(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|송장\s*번호|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|소계|합계/i;
-  // KR can use �?or $ as currency
+  // KR can use ₩ or $ as currency
   const curRe=/(?:₩|\$)\s*[\d,]+/;
   // Full: pname qty CUR up CUR charges rate% CUR tax CUR total
   const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)/;
@@ -555,7 +731,7 @@ function parseItemsKR(lines,fileName){
     // Korean: 송장 번호: 100462509 or Invoice Number: ...
     const im=ln.match(/(?:송장\s*번호|Invoice\s*Number)[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
     if(/(?:송장\s*번호|Invoice\s*Number)/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\\d{6,}|\\d{7,12})/));if(pm)curInv=pm[1];}
+      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
@@ -573,7 +749,7 @@ function parseItemsKR(lines,fileName){
       for(let j=i-1;j>=Math.max(0,i-3);j--){
         const prev=lines[j].text.trim();if(!prev)continue;
         if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,�?%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
+        if(!/^\s*[\d,₩$%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
       }
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
       if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
@@ -582,7 +758,7 @@ function parseItemsKR(lines,fileName){
   return items;
 }
 
-// ── IN Parser (India �?INR with IGST/CGST/SGST, HSN/SAC codes) ──
+// ── IN Parser (India — INR with IGST/CGST/SGST, HSN/SAC codes) ──
 function parseItemsIN(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
@@ -597,8 +773,8 @@ function parseItemsIN(lines,fileName){
     const{text:ln,page}=lines[i];
     const iim=ln.match(/Internal\s*Ref\.?\s*No\.?\s*:\s*(\d{7,12})/i);if(iim){curInv=iim[1];continue}
     const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
-    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\\d{6,}|\\d{7,12})/));if(pm)curInv=pm[1];}
+    if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
+      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
@@ -612,7 +788,7 @@ function parseItemsIN(lines,fileName){
         const nums=(ln.match(/[\d,]+\.?\d*/g)||[]).map(pN).filter(n=>n>0);
         if(nums.length>=2){charges=nums[0];total=nums[nums.length-1];}
       }
-      const key=`${curInv}|${charges}|${total}`;
+      const key=curInv+'|'+charges+'|'+total;
       if(charges>0&&total>0&&!seenTotals.has(key)){
         seenTotals.add(key);
         items.push({inv:curInv,tranche:curTr,pid:'SUBTOTAL',pname:'Sub-Total',qty:1,up:charges,charges:charges,tax:0,total:total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
@@ -644,13 +820,13 @@ function parseItemsIN(lines,fileName){
 // ── Generic Parser (AU/HK/TH/NZ/MY/PH/CA/SG + fallback) ──
 function parseItemsGen(lines,fileName,knownInvs,country){
   const items=[];let curInv='',curTr='';
-  // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) �?only parse ORIGINAL COPY pages
+  // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) — only parse ORIGINAL COPY pages
   const skipPages=new Set();
   if(country==='TH')for(const{text:ln,page}of lines){if(/CUSTOMER\s+COPY|BILLING\s+COPY/i.test(ln))skipPages.add(page);}
   // General product ID: WBD... or alphanumeric+underscore
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  // Currency patterns �?support $, RM, or no symbol
+  // Currency patterns — support $, RM, or no symbol
   const curSym='(?:\\$|RM)';
   // With $ or RM: pname qty CUR up CUR charges rate% CUR tax CUR total
   const reA=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)');
@@ -670,7 +846,7 @@ function parseItemsGen(lines,fileName,knownInvs,country){
     // Invoice number detection
     const im=ln.match(/(?:Tax\s+)?Invoice\s*(?:Number|No\.?|番号)\s*:?\s*([\d]{7,12})\b/i);
     if(im){curInv=im[1];continue}
-    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)){
+    if(/Invoice\s*(?:Number|No\.?)/i.test(ln)&&!/[\d]{7,12}/.test(ln)){
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([\d]{7,12})\b/);if(pm)curInv=pm[1];}
       continue;
     }
@@ -703,17 +879,6 @@ function parseItemsGen(lines,fileName,knownInvs,country){
     // PH plain no-tax (4 numbers only): qty up charges total
     m=rePhNoTax.exec(after);
     if(m&&pN(m[5])>0&&Math.abs(pN(m[4])-pN(m[5]))<1){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:0,total:pN(m[5]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
-    // PH/TH qty-first no-tax (no name)
-    m=rePhNoTaxNN.exec(after);
-    if(m&&pN(m[4])>0){
-      let pname='';
-      for(let j=i-1;j>=Math.max(0,i-2);j--){
-        const prev=lines[j].text.trim();if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev))break;
-        if(!/^\s*[\d,.$%\s]+$/.test(prev)){pname=prev;break;}
-      }
-      items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty:pN(m[1]),up:pN(m[2]),charges:pN(m[3]),tax:0,total:pN(m[4]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});continue;
-    }
   }
   return items;
 }
@@ -745,10 +910,11 @@ function parseStatement(lines,fileName){
   if(!li.length&&bs.length){
     li=bs.map(r=>({inv:r.inv,tranche:'',pid:'SUMMARY',pname:'Detail pages missing',qty:1,up:r.charges,charges:r.charges,tax:r.tax,total:r.total,taxRate:0,crfRdf:(r.crf||0)+(r.rdf||0),srcFile:fileName,srcPage:0}));
   }
+  const sT={charges:bs.reduce((s,r)=>s+r.charges,0),tax:bs.reduce((s,r)=>s+r.tax,0),total:bs.reduce((s,r)=>s+r.total,0)};
   // Detail totals per invoice
   const dt={};
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}
-  // If billing summary missing, derive from detail totals
+    // If billing summary missing, derive from detail totals
   if(!bs.length&&Object.keys(dt).length){
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
   }
@@ -777,9 +943,9 @@ function parseStatement(lines,fileName){
   // Grand Total reference = sum of (charges+tax) from billing summary + all CRF/RDF from DET items
   const sTotAdj=sT.charges+sT.tax+dGT.crfRdf;
   const td=Math.abs(sTotAdj-dGT.total);
-  vr.push({nm:'Grand Total �?Charges',p:cd<1,sv:cd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.charges,cur)} | Det: ${fc(dGT.charges,cur)} | Δ ${fc(cd,cur)}`});
-  vr.push({nm:'Grand Total �?Tax',p:txd<1,sv:txd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.tax,cur)} | Det: ${fc(dGT.tax,cur)} | Δ ${fc(txd,cur)}`});
-  vr.push({nm:'Grand Total �?Total',p:td<1,sv:td<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sTotAdj,cur)} | Det: ${fc(dGT.total,cur)} | Δ ${fc(td,cur)}`});
+  vr.push({nm:'Grand Total — Charges',p:cd<1,sv:cd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.charges,cur)} | Det: ${fc(dGT.charges,cur)} | Δ ${fc(cd,cur)}`});
+  vr.push({nm:'Grand Total — Tax',p:txd<1,sv:txd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.tax,cur)} | Det: ${fc(dGT.tax,cur)} | Δ ${fc(txd,cur)}`});
+  vr.push({nm:'Grand Total — Total',p:td<1,sv:td<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sTotAdj,cur)} | Det: ${fc(dGT.total,cur)} | Δ ${fc(td,cur)}`});
   if(unmS.length)vr.push({nm:`Detail pages missing (${unmS.length} invoice${unmS.length>1?'s':''})`,p:false,sv:'f',dt:unmS.join(', ')});
   if(unmD.length)vr.push({nm:`${unmD.length} inv in Detail only`,p:false,sv:'f',dt:unmD.join(', ')});
   for(const r of bs){const c=r.charges+r.tax+(r.crf||0)+(r.rdf||0),d=Math.abs(c-r.total);
@@ -808,6 +974,17 @@ fInEl.addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''})
 async function addFiles(fl){
   for(const file of fl){
     if(!file.name.toLowerCase().endsWith('.pdf'))continue;
+    // PH/TH qty-first no-tax (no name)
+    m=rePhNoTaxNN.exec(after);
+    if(m&&pN(m[4])>0){
+      let pname='';
+      for(let j=i-1;j>=Math.max(0,i-2);j--){
+        const prev=lines[j].text.trim();if(!prev)continue;
+        if(sectRe.test(prev)||pidRe.test(prev))break;
+        if(!/^\s*[\d,.$%\s]+$/.test(prev)){pname=prev;break;}
+      }
+      items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty:pN(m[1]),up:pN(m[2]),charges:pN(m[3]),tax:0,total:pN(m[4]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});continue;
+    }
     const id=++eid,entry={id,file,name:file.name,size:file.size,country:null,status:'detecting',lines:null};
     fileEntries.push(entry);renderFL();
     try{const lines=await pdfToLines(file);entry.lines=lines;entry.country=detectCountry(lines.slice(0,30).map(l=>l.text).join('\n'),file.name);entry.status='ready'}
@@ -822,12 +999,12 @@ function renderFL(){
     const cm=e.country?CM[e.country]||CM.OTHER:null;
     let b=e.status==='detecting'?`<span class="lb det">${t('detecting')}</span>`:
       e.status==='error'?'<span class="lb err">Error</span>':
-      `<span class="lb ok">${cm.flag} ${e.country} �?/span>`;
+      `<span class="lb ok">${cm.flag} ${e.country} ✓</span>`;
     return`<div class="fi"><span>📄</span><span class="fn" title="${esc(e.name)}">${esc(e.name)}</span><span class="fs">${fmtSz(e.size)}</span>${b}<button class="rb" onclick="remFile(${e.id})">×</button></div>`;
   }).join('');
   document.getElementById('aBar').style.display=fileEntries.length?'flex':'none';
 }
-function updRun(){const r=fileEntries.filter(e=>e.status==='ready').length;const b=document.getElementById('runBtn');b.disabled=r===0;b.textContent=r?`�?${t('run_btn').replace('�?','')} (${r})`:'�?'+t('run_btn').replace('�?','')}
+function updRun(){const r=fileEntries.filter(e=>e.status==='ready').length;const b=document.getElementById('runBtn');b.disabled=r===0;b.textContent=r?`▶ ${t('run_btn').replace('▶ ','')} (${r})`:'▶ '+t('run_btn').replace('▶ ','')}
 function clearAll(){fileEntries=[];analysisResults=null;renderFL();updRun();document.getElementById('gSum').style.display='none';document.getElementById('results').innerHTML='';document.getElementById('exBtn').style.display='none'}
 
 // ══════════════════════════════════════════════════════════════
@@ -850,7 +1027,7 @@ async function runAll(){
     done++;
   }
   setProg(95,t('rendering'));renderResults();
-  setProg(100,`${t('done')} �?${tot} file(s)`);
+  setProg(100,`${t('done')} — ${tot} file(s)`);
   document.getElementById('runBtn').disabled=false;document.getElementById('exBtn').style.display='inline-flex';
   setTimeout(()=>{document.getElementById('pw').style.display='none'},2000);
 }
@@ -863,9 +1040,9 @@ function buildTree(){
   for(const[code,g]of Object.entries(analysisResults)){
     if(!tree[code])tree[code]={meta:g.meta,st:{items:0,ch:0,tx:0,tot:0,err:0},ch:{}};
     for(const s of g.stmts)for(const li of s.li){
-      const cust=s.hd.custName||s.hd.custNum||'�?;
-      const per=s.hd.period||'�?;
-      const tr=li.tranche||'�?;
+      const cust=s.hd.custName||s.hd.custNum||'—';
+      const per=s.hd.period||'—';
+      const tr=li.tranche||'—';
       const cn=tree[code];
       if(!cn.ch[cust])cn.ch[cust]={st:{items:0,ch:0,tx:0,tot:0,err:0},ch:{}};
       const sn=cn.ch[cust];
@@ -900,13 +1077,13 @@ function renderHierarchy(){
       }
     }
   }
-  return`<div class="tb"><div>${t('hierarchy')}: Country �?Customer �?Period �?Tranche</div><button class="btn btn-s" onclick="doExport()">${t('export_btn')}</button></div>
+  return`<div class="tb"><div>${t('hierarchy')}: Country → Customer → Period → Tranche</div><button class="btn btn-s" onclick="doExport()">${t('export_btn')}</button></div>
     <div class="hw"><table class="ht"><thead><tr><th>${t('hierarchy')}</th><th class="tr">${t('items')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th><th class="tr">${t('total')}</th><th class="tr">${t('issues')}</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 function hRow(id,pid,lv,label,st,c,open){
   const hf=(v)=>c==='JPY'?'¥'+Math.round(v).toLocaleString():'$'+v.toFixed(2);
-  const tog=lv<3?`<button class="htg" onclick="togH('${id}')">${open?'�?:'�?}</button>`:'<span style="display:inline-block;width:20px"></span>';
+  const tog=lv<3?`<button class="htg" onclick="togH('${id}')">${open?'▼':'▶'}</button>`:'<span style="display:inline-block;width:20px"></span>';
   const labels=['','Customer: ','Period: ','Tranche: '];
   const ds=(pid&&!open)?' style="display:none"':'';
   return`<tr class="hl${lv}" data-hid="${id}" data-p="${pid}" data-e="${open?1:0}"${ds}>
@@ -917,7 +1094,7 @@ function hRow(id,pid,lv,label,st,c,open){
 function togH(id){
   const row=document.querySelector(`tr[data-hid="${id}"]`);if(!row)return;
   const open=row.dataset.e==='1';row.dataset.e=open?'0':'1';
-  const btn=row.querySelector('.htg');if(btn)btn.textContent=open?'�?:'�?;
+  const btn=row.querySelector('.htg');if(btn)btn.textContent=open?'▶':'▼';
   if(open)hideDesc(id);else document.querySelectorAll(`tr[data-p="${id}"]`).forEach(c=>{c.style.display=''});
 }
 function hideDesc(id){document.querySelectorAll(`tr[data-p="${id}"]`).forEach(c=>{c.style.display='none';if(c.dataset.hid)hideDesc(c.dataset.hid)})}
@@ -962,7 +1139,7 @@ function renderCountry(code){
   const stmts=analysisResults[code].stmts;
   const byCust={};for(const s of stmts){const k=s.hd.custName||s.hd.custNum||'Unknown';if(!byCust[k])byCust[k]=[];byCust[k].push(s)}
   const custs=Object.keys(byCust),sid=`sc-${code}`;
-  let h=`<div class="stabs">${custs.map((c,i)=>{const sh=c.length>28?c.substring(0,26)+'�?:c;
+  let h=`<div class="stabs">${custs.map((c,i)=>{const sh=c.length>28?c.substring(0,26)+'…':c;
     return`<button class="st${i===0?' a':''}" id="${sid}-${i}" onclick="swSub('${code}',${i},${custs.length})" title="${esc(c)}">${esc(sh)} (${byCust[c].length})</button>`}).join('')}</div>`;
   custs.forEach((c,i)=>{h+=`<div class="sp${i===0?' a':''}" id="${sid}-p-${i}">${renderCustStmts(byCust[c],code)}</div>`});
   return h;
@@ -995,10 +1172,10 @@ function renderCustStmts(stmts){
       const lbl=c.st==='matched'?`<span class="tg">${t('matched')}</span>`:c.st==='summary_only'?`<span class="to">${t('sum_only')}</span>`:`<span class="to">${t('det_only')}</span>`;
       const fD=(v,ok)=>c.st!=='matched'?`<span class="to">${fc(v,C)}</span>`:`<span class="${ok?'tg':'tre'}">${fc(v,C)}</span>`;
       h+=`<tr class="${cls}"><td class="mono">${c.inv}</td><td>${lbl}</td>`;
-      h+=`<td class="mono tr">${c.sC?fc(c.sC,C):'�?}</td><td class="mono tr">${c.dC||c.n?fc(c.dC,C):'�?}</td><td class="mono tr">${fD(c.dC_,c.mC)}</td>`;
-      h+=`<td class="mono tr">${c.sT||c.st==='matched'?fc(c.sT,C):'�?}</td><td class="mono tr">${c.dT||c.n?fc(c.dT,C):'�?}</td><td class="mono tr">${fD(c.dT_,c.mT)}</td>`;
-      h+=`<td class="mono tr">${c.sTot?fc(c.sTot,C):'�?}</td><td class="mono tr">${c.dTot||c.n?fc(c.dTot,C):'�?}</td><td class="mono tr">${fD(c.dTot_,c.mTot)}</td>`;
-      h+=`<td class="mono tr">${c.n}${c.nw?` <span class="to" title="${c.nw} non-WBD">(${c.nw}�?</span>`:''}</td><td>${c.m?'<span class="tg">�?/span>':'<span class="tre">�?/span>'}</td></tr>`;
+      h+=`<td class="mono tr">${c.sC?fc(c.sC,C):'—'}</td><td class="mono tr">${c.dC||c.n?fc(c.dC,C):'—'}</td><td class="mono tr">${fD(c.dC_,c.mC)}</td>`;
+      h+=`<td class="mono tr">${c.sT||c.st==='matched'?fc(c.sT,C):'—'}</td><td class="mono tr">${c.dT||c.n?fc(c.dT,C):'—'}</td><td class="mono tr">${fD(c.dT_,c.mT)}</td>`;
+      h+=`<td class="mono tr">${c.sTot?fc(c.sTot,C):'—'}</td><td class="mono tr">${c.dTot||c.n?fc(c.dTot,C):'—'}</td><td class="mono tr">${fD(c.dTot_,c.mTot)}</td>`;
+      h+=`<td class="mono tr">${c.n}${c.nw?` <span class="to" title="${c.nw} non-WBD">(${c.nw}⚠)</span>`:''}</td><td>${c.m?'<span class="tg">✓</span>':'<span class="tre">✗</span>'}</td></tr>`;
     }
     // Grand total
     const gc=Math.abs(s.sT.charges-s.dGT.charges),gt=Math.abs(s.sT.tax-s.dGT.tax);
@@ -1011,18 +1188,18 @@ function renderCustStmts(stmts){
     h+=`<td class="mono tr">${s.li.length}</td><td></td></tr></tbody></table></div>`;
 
     // Unmapped alerts
-    if(s.unmS.length)h+=`<div class="ib f">ERROR <div><strong>${s.unmS.length} ${t('sum_only')}:</strong> <span class="mono">${s.unmS.join(', ')}</span></div></div>`;
-    if(s.unmD.length)h+=`<div class="ib w">�?<div><strong>${s.unmD.length} ${t('det_only')}:</strong> <span class="mono">${s.unmD.join(', ')}</span></div></div>`;
+    if(s.unmS.length)h+=`<div class="ib w">⚠ <div><strong>${s.unmS.length} ${t('sum_only')}:</strong> <span class="mono">${s.unmS.join(', ')}</span></div></div>`;
+    if(s.unmD.length)h+=`<div class="ib w">⚠ <div><strong>${s.unmD.length} ${t('det_only')}:</strong> <span class="mono">${s.unmD.join(', ')}</span></div></div>`;
 
     // Collapsible: Billing Summary
     const hasFee=s.bs.some(r=>r.crf||r.rdf);
     h+=`<details style="margin:0 12px"><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">📋 ${t('billing_sum')} (${s.bs.length})</summary>
       <div style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:auto;max-height:380px"><table>
-      <thead><tr><th>${t('invoice')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th>${hasFee?'<th class="tr">CRF</th><th class="tr">RDF</th>':''}<th class="tr">${t('total')}</th><th>�?/th></tr></thead><tbody>`;
+      <thead><tr><th>${t('invoice')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th>${hasFee?'<th class="tr">CRF</th><th class="tr">RDF</th>':''}<th class="tr">${t('total')}</th><th>✓</th></tr></thead><tbody>`;
     for(const r of s.bs){const calc=r.charges+r.tax+(r.crf||0)+(r.rdf||0),d=Math.abs(calc-r.total),ok=d<1;
       h+=`<tr class="${ok?'':'re'}"><td class="mono">${r.inv}</td><td class="mono tr">${fc(r.charges,C)}</td><td class="mono tr">${fc(r.tax,C)}</td>`;
       if(hasFee)h+=`<td class="mono tr">${fc(r.crf||0,C)}</td><td class="mono tr">${fc(r.rdf||0,C)}</td>`;
-      h+=`<td class="mono tr">${fc(r.total,C)}</td><td>${ok?'<span class="tg">�?/span>':'<span class="tre">�?/span>'}</td></tr>`}
+      h+=`<td class="mono tr">${fc(r.total,C)}</td><td>${ok?'<span class="tg">✓</span>':'<span class="tre">✗</span>'}</td></tr>`}
     h+=`</tbody></table></div></details>`;
 
     // Collapsible: Detail
@@ -1039,9 +1216,9 @@ function renderCustStmts(stmts){
     h+='</tbody></table></div></details>';
 
     // Collapsible: Validation
-    h+=`<details style="margin:0 12px"${fails?' open':''}><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">�?${t('validation')} (${s.vr.length} ${t('checks')}, ${fails} ${t('issues')})</summary><div style="padding-bottom:14px">`;
+    h+=`<details style="margin:0 12px"${fails?' open':''}><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">✅ ${t('validation')} (${s.vr.length} ${t('checks')}, ${fails} ${t('issues')})</summary><div style="padding-bottom:14px">`;
     for(const v of s.vr){
-      const icon=v.sv==='p'?'�?:v.sv==='f'?'�?:'�?;
+      const icon=v.sv==='p'?'✓':v.sv==='f'?'✗':'⚠';
       const cc=v.sv==='p'?'p':v.sv==='f'?'f':'w';
       h+=`<div class="vi"><span class="vc ${cc}">${icon}</span><div><div style="font-size:12px;font-weight:600">${esc(v.nm)}</div><div style="font-size:10px;color:var(--text-dim)">${esc(v.dt)}</div></div></div>`;
     }
@@ -1087,5 +1264,3 @@ function addSh(wb,data,name){const ws=XLSX.utils.aoa_to_sheet(data),cols=[];
 </script>
 </body>
 </html>
-
-
