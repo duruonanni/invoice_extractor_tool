@@ -686,7 +686,7 @@ function parseItemsEMEA(lines,fileName){
     if(im){curInv=im[1];continue}
     // Two-line invoice number
     if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)) {
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})//^(\d{7,12})/);if(pm)curInv=pm[1];}
+      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
