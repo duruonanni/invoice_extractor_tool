@@ -444,6 +444,7 @@ function detectCountry(text,fn){
 // ── Shared: Billing Summary ──
 function parseBillingSummary(text){
   const res=[];let m;
+  const hasSummaryLabel=/Billing Summary|Invoice Summary|Summary of Invoices|Statement Summary/i.test(text);
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
   while((m=usP.exec(text))!==null){
@@ -464,7 +465,7 @@ function parseBillingSummary(text){
   const curSym='(?:\\$|[¥￥]|€|CHF|GBP|SEK|₩|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
   // 3-col with currency: inv CUR charges CUR tax CUR total
   const p3c=new RegExp('(\\d{7,12})\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)','g');
-  while((m=p3c.exec(text))!==null){
+  while(hasSummaryLabel && (m=p3c.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
@@ -472,7 +473,7 @@ function parseBillingSummary(text){
   if(res.length)return res;
   // Plain 3-col (no symbol): inv charges tax total (PH, TH, etc.)
   const p3n=/(\d{7,12})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
-  while((m=p3n.exec(text))!==null){
+  while(hasSummaryLabel && (m=p3n.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
@@ -480,7 +481,7 @@ function parseBillingSummary(text){
   if(res.length)return res;
   // JP yen (integer): inv ¥ charges ¥ tax ¥ total
   const pJP=/(\d{7,12})\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)/g;
-  while((m=pJP.exec(text))!==null){
+  while(hasSummaryLabel && (m=pJP.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
@@ -488,7 +489,7 @@ function parseBillingSummary(text){
   if(res.length)return res;
   // KRW integer (no decimals): inv ₩ charges ₩ tax ₩ total
   const pKR=/(\d{7,12})\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)/g;
-  while((m=pKR.exec(text))!==null){
+  while(hasSummaryLabel && (m=pKR.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
@@ -496,7 +497,7 @@ function parseBillingSummary(text){
   // AU tranche-based: trancheID $charges $ tax $ total  (tranche IDs like 1216232138_AU_202512_M_48_006)
   if(!res.length){
     const auP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
-    while((m=auP.exec(text))!==null){
+    while(hasSummaryLabel && (m=auP.exec(text))!==null){
       const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
       if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
         res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
