@@ -5,12 +5,18 @@
 ║       Lenovo DaaS Invoice Validator — Version History            ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║  │  │  v3.12.2  |  2026-03-18                                         │
+║  │  │  │  v3.12.3  |  2026-03-18                                         │
+│  ─────────────────────────────────────────────────────────────  │
+│  [IMPROVE] PDF unreadable/unsupported warning                   │
+│  • If no Billing Summary and no Detail Items, show explicit     │
+│    validation error message                                    │
+│                                                                  │
+│  v3.12.2  |  2026-03-18                                         │
 │  ─────────────────────────────────────────────────────────────  │
 │  [BUG FIX] IN subtotal double-count prevention                  │
 │  • Dedupes Sub-Total/Grand-Total entries per invoice            │
 │                                                                  │
-│  v3.12.1  |  2026-03-18                                         │
+│  v3.12.1  |  2026-03-18                                         │                                         │
 │  ─────────────────────────────────────────────────────────────  │
 │  [BUG FIX] EMEA invoice number detection + $ currency support   │
 │  • Handles multi-line Invoice Number blocks & ODN format        │
@@ -375,7 +381,7 @@ tbody tr:hover{background:var(--surface-2)}
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.2';
+const VERSION='3.12.3';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 // ══════════════════════════════════════════════════════════════
@@ -996,6 +1002,9 @@ function parseStatement(lines,fileName){
   for(const inv of dSet){if(!sSet.has(inv)){const d=dt[inv];unmD.push(inv);comp.push({inv,sC:0,sT:0,sTot:0,dC:d.charges,dT:d.tax,dTot:d.total,dC_:d.charges,dT_:d.tax,dTot_:d.total,mC:false,mT:false,mTot:false,m:false,n:d.count,nw:d.nonWbd||0,st:'detail_only'})}}
   // Validation
   const vr=[];const noD=li.length===0;
+  if(!bs.length&&!li.length){
+    vr.push({nm:'PDF content not readable / unsupported',p:false,sv:'f',dt:'No Billing Summary and no Detail Line Items detected. PDF may be scanned, missing text layer, or uses unsupported layout.'});
+  }
   const cd=Math.abs(sT.charges-dGT.charges),txd=Math.abs(sT.tax-dGT.tax);
   // Grand Total reference = sum of (charges+tax) from billing summary + all CRF/RDF from DET items
   const sTotAdj=sT.charges+sT.tax+dGT.crfRdf;
@@ -1309,6 +1318,7 @@ function addSh(wb,data,name){const ws=XLSX.utils.aoa_to_sheet(data),cols=[];
 </script>
 </body>
 </html>
+
 
 
 
