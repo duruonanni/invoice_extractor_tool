@@ -905,6 +905,7 @@ function parseStatement(lines,fileName){
   const cur=(CM[country]||CM.OTHER).cur;
   const hd=parseHeader(lines);
   let bs=parseBillingSummary(fullText);
+  let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
   let li=parseItems(country,lines,fileName,knownInvs);
   // If no detail items but billing summary exists, synthesize one item per invoice
@@ -916,6 +917,7 @@ function parseStatement(lines,fileName){
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}
     // If billing summary missing, derive from detail totals
   if(!bs.length&&Object.keys(dt).length){
+    bsDerived=true;
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
   }
   const sT={charges:bs.reduce((s,r)=>s+r.charges,0),tax:bs.reduce((s,r)=>s+r.tax,0),total:bs.reduce((s,r)=>s+r.total,0)};
@@ -938,6 +940,10 @@ function parseStatement(lines,fileName){
   const vr=[];const noD=li.length===0;
   if(!bs.length&&!li.length){
     vr.push({nm:'PDF content not readable / unsupported',p:false,sv:'f',dt:'No Billing Summary and no Detail Line Items detected. PDF may be scanned, missing text layer, or uses unsupported layout.'});
+  }
+  if(bsDerived){
+    const invs=Object.keys(dt);
+    vr.push({nm:`Billing Summary missing (${invs.length} invoice${invs.length>1?'s':''})`,p:false,sv:'f',dt:invs.join(', ')});
   }
   const cd=Math.abs(sT.charges-dGT.charges),txd=Math.abs(sT.tax-dGT.tax);
   // Grand Total reference = sum of (charges+tax) from billing summary + all CRF/RDF from DET items
