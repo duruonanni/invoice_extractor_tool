@@ -910,7 +910,6 @@ function parseStatement(lines,fileName){
   if(!li.length&&bs.length){
     li=bs.map(r=>({inv:r.inv,tranche:'',pid:'SUMMARY',pname:'Detail pages missing',qty:1,up:r.charges,charges:r.charges,tax:r.tax,total:r.total,taxRate:0,crfRdf:(r.crf||0)+(r.rdf||0),srcFile:fileName,srcPage:0}));
   }
-  const sT={charges:bs.reduce((s,r)=>s+r.charges,0),tax:bs.reduce((s,r)=>s+r.tax,0),total:bs.reduce((s,r)=>s+r.total,0)};
   // Detail totals per invoice
   const dt={};
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}
