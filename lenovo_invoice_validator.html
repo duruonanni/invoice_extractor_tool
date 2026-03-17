@@ -2,8 +2,7 @@
 <html lang="en">
 <!--
 ¨X¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨[
-¨U       Lenovo DaaS Invoice Validator ¡ª Version History            ¨U
-v3.12.4 | 2026-03-18 - Detail pages missing flagged as error with invoice list
+¨U       Lenovo DaaS Invoice Validator ¡ª Version History            ¨U`r`nv3.12.4 | 2026-03-18 - Detail pages missing flagged as error with invoice list
 ¨d¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨g
 ¨U                                                                  ¨U
 ¨U  ©¦  ©¦  ©¦  v3.12.3  |  2026-03-18                                         ©¦
@@ -404,7 +403,7 @@ const CM={AT:{flag:'????',label:'Austria',cur:'EUR'},AU:{flag:'????',label:'Aust
 let fileEntries=[],eid=0,analysisResults=null;
 const pN=s=>s?parseFloat(String(s).replace(/,/g,''))||0:0;
 function fc(n,c){
-  const sym={JPY:'£¤',EUR:'€',GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'KRW ',INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'THB ',HKD:'HK$',USD:'$'};
+  const sym={JPY:'£¤',EUR:'€',GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'?',INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'?',HKD:'HK$',USD:'$'};
   const s=sym[c]||'';const noD=c==='JPY'||c==='KRW';
   return s+(noD?Math.round(n).toLocaleString():n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
 }
@@ -450,7 +449,7 @@ function detectCountry(text,fn){
   if(text.includes('Hong Kong')||text.includes('HKD'))return'HK';
   if(text.includes('GST')&&text.includes('AUD'))return'AU';
   if(text.includes('Thailand')||text.includes('THB'))return'TH';
-  if(/\\u20A9|KRW/.test(text))return'KR';
+  if(/?|KRW/.test(text))return'KR';
   if(/\bINR\b/.test(text))return'IN';
   if(/\bRM\s/.test(text))return'MY';
   if(/\bSEK\b/.test(text))return'SE';
@@ -484,7 +483,7 @@ function parseBillingSummary(text){
   }
   if(res.length)return res;
   // Currency symbol patterns: $ £¤ € CHF GBP SEK ? INR RM
-  const curSym='(?:\\$|[£¤£¤]|€|CHF|GBP|SEK|\\u20A9|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
+  const curSym='(?:\\$|[£¤£¤]|€|CHF|GBP|SEK|?|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
   // 3-col with currency: inv CUR charges CUR tax CUR total
   const p3c=new RegExp('(\\d{7,12})\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)','g');
   while((m=p3c.exec(text))!==null){
@@ -1319,8 +1318,6 @@ function addSh(wb,data,name){const ws=XLSX.utils.aoa_to_sheet(data),cols=[];
 </script>
 </body>
 </html>
-
-
 
 
 
