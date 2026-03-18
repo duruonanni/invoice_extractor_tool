@@ -1,4 +1,4 @@
-function parseBillingSummary(text){
+function parseBillingSummaryGeneric(text){
   const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By)/i.test(text);
   const res=[];let m;
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
@@ -69,6 +69,32 @@ function parseBillingSummary(text){
     }
   }
   return res;
+}
+
+function parseBillingSummaryNL(lines){
+  const res=[];
+  const curSym='(?:\\u20ac|EUR)';
+  const rowRe=new RegExp('^(\\d{7,12})\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$');
+  let inSummary=false;
+  for(let i=0;i<lines.length;i++){
+    const ln=(lines[i].text||'').trim();
+    if(/Billing\s*Summary/i.test(ln)){inSummary=true;continue;}
+    if(!inSummary)continue;
+    if(/Tax\s*Invoice\s*No\.\s*Charges\s*VAT\s*Total/i.test(ln))continue;
+    if(/^Invoice\s*Number\b/i.test(ln)||/^Product\s*ID\b/i.test(ln)||/^Tranche\s*ID\b/i.test(ln))break;
+    const m=ln.match(rowRe);
+    if(m){
+      res.push({inv:m[1],charges:pN(m[2]),tax:pN(m[3]),total:pN(m[4]),crf:0,rdf:0});
+      continue;
+    }
+    if(res.length&&(/^Grand\s*Total/i.test(ln)||/^Payable on:/i.test(ln)||/^Please reference Lenovo invoice number/i.test(ln)))break;
+  }
+  return res;
+}
+
+function parseBillingSummary(text,lines,fileName,country){
+  if(country==='NL'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryNL(lines);
+  return parseBillingSummaryGeneric(text);
 }
 
 // JP Parser
@@ -209,6 +235,7 @@ function parseItemsEMEA(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore (e.g. 21FBSDGX0L_AAS, 78722528_AAS)
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)$/i;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
   // Currency: EUR/GBP/SEK (prefix/suffix, handle mojibake euro)
   const curSymS='(?:\\u20ac|\\u00a3|\\u00e2\\u201a\\u00ac|\\u0432\\u201a\\u00ac|SEK|GBP|EUR|CHF)';
@@ -221,17 +248,43 @@ function parseItemsEMEA(lines,fileName){
   const reFullS=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+amtS+'\\s+'+amtS+'\\s+([\\d.]+)\\s*%\\s+'+amtS+'\\s+'+amtS);
   const reNumsS=new RegExp('^\\s*([\\d,]+\\.?\\d*)\\s+'+amtS+'\\s+'+amtS+'\\s+([\\d.]+)\\s*%\\s+'+amtS+'\\s+'+amtS);
   const reNums=new RegExp('^\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)');
+  function shouldAppendContinuation(base,next){
+    if(!next)return false;
+    if(sectRe.test(next)||strictPidRe.test(next)||curRe.test(next)||curReS.test(next))return false;
+    if(/^sub[\s-]*total|grand[\s-]*total|page \d+ of \d+/i.test(next))return false;
+    if(/^(Lenovo|This is a computer generated|Payable on:|Please raise your claims|Transactions relating|Place of performance|Payment Terms:|A late payment charge|Payment by Bank Transfer:|Please ask your bank|Citibank|SWIFT code:)/i.test(next))return false;
+    if(/^[A-Za-z]+$/.test(next)){
+      return /[-/(]$/.test(base)||/\b(English|German|French|Spanish|Italian|Japanese|USEnglish|US English|Monthly)$/i.test(base);
+    }
+    return true;
+  }
+  function mergePnameParts(lead,tail){
+    const a=(lead||'').trim();
+    const b=(tail||'').trim();
+    if(!a)return b;
+    if(!b)return a;
+    if(a===b)return a;
+    if(a.includes(b))return a;
+    if(b.includes(a))return b;
+    return `${a} ${b}`.trim();
+  }
+  function appendContinuation(base,idx){
+    let pname=base||'';
+    for(let j=idx+1;j<Math.min(idx+4,lines.length);j++){
+      const nxt=lines[j].text.trim();
+      if(!shouldAppendContinuation(pname,nxt))break;
+      pname+=(pname?' ':'')+nxt;
+    }
+    return pname.trim();
+  }
   function inferPname(idx){
     let pname='';
     for(let j=idx-1;j>=Math.max(0,idx-3);j--){
       const prev=lines[j].text.trim();
       if(!prev)continue;
       if(sectRe.test(prev)||curRe.test(prev)||curReS.test(prev))break;
+      if(/^(German|English|USEnglish|US English|Monthly)$/i.test(prev))continue;
       if(!/^\s*[\d,.%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
-    }
-    if(idx+1<lines.length){
-      const nxt=lines[idx+1].text.trim();
-      if(nxt&&!pidRe.test(nxt)&&!sectRe.test(nxt)&&!curRe.test(nxt)&&!curReS.test(nxt)&&!/^[A-Za-z]+$/.test(nxt))pname=(pname?pname+' ':'')+nxt;
     }
     return pname.trim();
   }
@@ -242,6 +295,7 @@ function parseItemsEMEA(lines,fileName){
     if(im){curInv=im[1];continue}
     // Two-line invoice number
     if(/Invoice\s*Number|Rechnungsnummer/i.test(ln)&&!/\d{7,12}/.test(ln)){
+      curTr='';
       for(let j=i+1;j<Math.min(i+4,lines.length);j++){
         const pk=lines[j].text.trim();
         const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);
@@ -266,25 +320,25 @@ function parseItemsEMEA(lines,fileName){
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
     let m=reFull.exec(after);
     if(m){
-      const pname=m[1].trim()||inferPname(i)||pid;
+      const pname=appendContinuation(mergePnameParts(inferPname(i),m[1].trim()||pid),i);
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
     m=reFullS.exec(after);
     if(m){
-      const pname=m[1].trim()||inferPname(i)||pid;
+      const pname=appendContinuation(mergePnameParts(inferPname(i),m[1].trim()||pid),i);
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
     m=reNums.exec(after);
     if(m){
-      const pname=inferPname(i);
+      const pname=appendContinuation(inferPname(i),i);
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
     m=reNumsS.exec(after);
     if(m){
-      const pname=inferPname(i);
+      const pname=appendContinuation(inferPname(i),i);
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
@@ -371,6 +425,232 @@ function parseItemsIN(lines,fileName){
 }
 
 // 鈹€鈹€ Generic Parser (AU/HK/TH/NZ/MY/PH/CA/SG + fallback) 鈹€鈹€
+function parseItemsAT01(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const curSym='(?:\\u20ac|\\u00a3|\\u00e2\\u201a\\u00ac|\\u0432\\u201a\\u00ac|EUR|CHF|GBP|SEK)';
+  const fullRe=new RegExp('^(WBD[A-Z0-9]+)\\s+(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$');
+  const numsRe=new RegExp('^(WBD[A-Z0-9]+)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$');
+  const invLabelRe=/Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i;
+  const trancheValueRe=/^[A-Z0-9_][A-Z0-9_\-]{8,}$/i;
+  const stopTextRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Product ID Product Name|Subscription Service Detail|Tax Invoice|Invoice to name|Sold to name|References|Payable on:|Please raise your claims|Transactions relating|Place of performance|Payment Terms:|A late payment charge|Payment by Bank Transfer:|Please ask your bank|Citibank|SWIFT code:|Lenovo |This is a computer generated|Date =|page \d+ of \d+)/i;
+  const languageOnlyRe=/^(German|English|USEnglish|US English|Monthly)$/i;
+  function cleanPart(s){return String(s||'').replace(/\s+/g,' ').trim()}
+  function mergeParts(parts){
+    const out=[];
+    for(const raw of parts){
+      const part=cleanPart(raw);
+      if(!part)continue;
+      if(out.length&&out[out.length-1]===part)continue;
+      out.push(part);
+    }
+    return out.join(' ').trim();
+  }
+  function isTextOnly(line){
+    return line&&!stopTextRe.test(line)&&!fullRe.test(line)&&!numsRe.test(line)&&!/\d+\s+(?:EUR|CHF|GBP|SEK)\s*[\d,]/.test(line);
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=cleanPart(lines[j].text);
+      if(!isTextOnly(nxt))break;
+      if(/^[A-Z0-9]{5,}_[A-Z0-9_]+$/i.test(nxt)||languageOnlyRe.test(nxt)||/^\//.test(nxt)||/(Win11|SSD|English|German|Monthly|EMMITSBURG)/i.test(nxt)){
+        parts.push(nxt);
+        endIdx=j;
+        continue;
+      }
+      break;
+    }
+    return{suffix:mergeParts(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=cleanPart(lines[i].text);
+    const page=lines[i].page;
+    if(!ln)continue;
+    if(invLabelRe.test(ln)){
+      curTr='';pending=[];
+      for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+        const pm=cleanPart(lines[j].text).match(/^(\d{7,12})\b/);
+        if(pm){curInv=pm[1];break}
+      }
+      continue;
+    }
+    if(/^Tranche\s*ID$/i.test(ln)){
+      curTr='';pending=[];
+      for(let j=i-1;j>=Math.max(0,i-2);j--){
+        const prev=cleanPart(lines[j].text);
+        if(trancheValueRe.test(prev)){curTr=prev;break}
+      }
+      continue;
+    }
+    if(stopTextRe.test(ln)){pending=[];continue}
+    let m=ln.match(fullRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=mergeParts([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      const qty=pN(m[3]),up=pN(m[4]),ch=pN(m[5]),rate=pN(m[6]),tax=pN(m[7]),tot=pN(m[8]);
+      if(tot>0)items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    m=ln.match(numsRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=mergeParts([pending.join(' '),suffixInfo.suffix])||m[1];
+      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
+      if(tot>0)items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    if(isTextOnly(ln)){
+      pending.push(ln);
+      if(pending.length>1)pending=pending.slice(-1);
+    }
+  }
+  return items;
+}
+
+function parseItemsNL01(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const curSym='(?:\\u20ac|EUR)';
+  const pidRe=/^(WBD[A-Z0-9]+)\b/i;
+  const fullRe=new RegExp('^(WBD[A-Z0-9]+)\\s+(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$','i');
+  const numsRe=new RegExp('^(WBD[A-Z0-9]+)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$','i');
+  const trancheRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Product ID Product Name|Subscription Service Detail|Invoice Number|Invoice to name|Sold to name|References|Payable on:|Please raise your claims|Transactions relating|Lenovo |This is a computer generated|Date =|page \d+ of \d+)/i;
+  const suffixRe=/^[-(]|English|Dutch|German|Monthly|Euro|Dock|Monitor|KB/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=clean(lines[j].text);
+      if(!nxt||stopRe.test(nxt)||pidRe.test(nxt)||trancheRe.test(nxt)||/^\d{7,12}\b/.test(nxt))break;
+      if(suffixRe.test(nxt)){parts.push(nxt);endIdx=j;continue;}
+      break;
+    }
+    return{suffix:merge(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)){
+      pending=[];curTr='';
+      for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+        const m=clean(lines[j].text).match(/^(\d{7,12})\b/);
+        if(m){curInv=m[1];break;}
+      }
+      continue;
+    }
+    if(/^Tranche\s*ID\s+(\S+)/i.test(ln)){
+      const m=ln.match(/^Tranche\s*ID\s+(\S+)/i);
+      curTr=m[1];pending=[];continue;
+    }
+    if(/^Tranche\s*ID$/i.test(ln)){
+      curTr='';pending=[];
+      const prev=clean(lines[i-1]?.text||'');
+      const next=clean(lines[i+1]?.text||'');
+      if(trancheRe.test(prev))curTr=prev;
+      else if(trancheRe.test(next)){curTr=next;i++;}
+      continue;
+    }
+    if(stopRe.test(ln)){pending=[];continue;}
+    let m=ln.match(fullRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    m=ln.match(numsRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:pN(m[6]),total:pN(m[7]),taxRate:pN(m[5]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    if(!trancheRe.test(ln)&&!/\b\d+\s+(?:\u20ac|EUR)\s*[\d,]/.test(ln)) {
+      pending=[ln];
+    }
+  }
+  return items;
+}
+
+function parseItemsNL11(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const curSym='(?:\\u20ac|EUR)';
+  const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/i;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)\b/i;
+  const fullRe=new RegExp('^([A-Za-z0-9][A-Za-z0-9_]{4,})\\s+(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$','i');
+  const numsRe=new RegExp('^([A-Za-z0-9][A-Za-z0-9_]{4,})\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)$','i');
+  const trancheRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Product ID Product Name|Invoice to name|Sold to name|References|Payable on:|Please raise your claims|Transactions relating|Lenovo |This is a computer generated|Date =|page \d+ of \d+)/i;
+  const nextHeaderRe=/^(Bundle\b|ThinkPad\b|ThinkCentre\b|ThinkCenter\b|Desktop\b|Workstation\b|NB\b)/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=clean(lines[j].text);
+      if(!nxt||stopRe.test(nxt)||strictPidRe.test(nxt)||trancheRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||nextHeaderRe.test(nxt))break;
+      parts.push(nxt);endIdx=j;
+    }
+    return{suffix:merge(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)){
+      pending=[];curTr='';
+      for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+        const m=clean(lines[j].text).match(/^(\d{7,12})\b/);
+        if(m){curInv=m[1];break;}
+      }
+      continue;
+    }
+    if(/^Tranche\s*ID$/i.test(ln)){
+      pending=[];
+      const prev=clean(lines[i-1]?.text||'');
+      const next=clean(lines[i+1]?.text||'');
+      curTr=trancheRe.test(prev)?prev:(trancheRe.test(next)?next:'');
+      if(trancheRe.test(next))i++;
+      continue;
+    }
+    if(stopRe.test(ln)){pending=[];continue;}
+    let m=ln.match(fullRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    m=ln.match(numsRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:pN(m[6]),total:pN(m[7]),taxRate:pN(m[5]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    if(!trancheRe.test(ln)&&!/\b\d+\s+(?:\u20ac|EUR)\s*[\d,]/.test(ln))pending=[ln];
+  }
+  return items;
+}
+
 function parseItemsGen(lines,fileName,knownInvs,country){
   const items=[];let curInv='',curTr='';
   // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) 鈥?only parse ORIGINAL COPY pages
@@ -436,6 +716,9 @@ function parseItemsGen(lines,fileName,knownInvs,country){
 
 // 鈹€鈹€ Router 鈹€鈹€
 function parseItems(country,lines,fileName,knownInvs){
+  if(/^AT01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsAT01(lines,fileName);
+  if(/^NL01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL01(lines,fileName);
+  if(/^NL11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL11(lines,fileName);
   if(country==='JP')return parseItemsJP(lines,fileName);
   if(country==='US')return parseItemsUS(lines,fileName);
   if(country==='CA')return parseItemsUS(lines,fileName); // CA uses same 5-col $ format as US
@@ -454,7 +737,7 @@ function parseStatement(lines,fileName){
   const country=detectCountry(fullText,fileName);
   const cur=(CM[country]||CM.OTHER).cur;
   const hd=parseHeader(lines);
-  let bs=parseBillingSummary(fullText);
+  let bs=parseBillingSummary(fullText,lines,fileName,country);
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
   const li=parseItems(country,lines,fileName,knownInvs);  // Detail totals per invoice

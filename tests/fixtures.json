@@ -32,6 +32,30 @@
       "file": "KR01_STMT_BRIM_STATEMENT_EPREKRP0000190_KO.PDF",
       "min_invoices": 1,
       "min_items": 1
+    },
+    {
+      "country": "NL",
+      "file": "NL01_STMT_BRIM_STATEMENT_EPRENLP0000517_EN.PDF",
+      "min_invoices": 2,
+      "min_items": 14,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
+    },
+    {
+      "country": "NL",
+      "file": "NL11_STMT_BRIM_STATEMENT_EPRENLP0000515_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 10,
+      "max_failed_checks": 1,
+      "max_mismatches": 0
+    },
+    {
+      "country": "NL",
+      "file": "NL11_STMT_BRIM_STATEMENT_EPRENLP0000528_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 3,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
     }
   ]
 }
