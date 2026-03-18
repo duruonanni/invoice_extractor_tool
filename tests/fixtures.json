@@ -64,6 +64,46 @@
       "min_items": 9,
       "max_failed_checks": 0,
       "max_mismatches": 0
+    },
+    {
+      "country": "MY",
+      "file": "MY01_STMT_BRIM_STATEMENT_EPREMYP0001022.PDF",
+      "min_invoices": 2,
+      "min_items": 14,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
+    },
+    {
+      "country": "IN",
+      "file": "IN01_STMT_BRIM_STATEMENT_EPREINP0000732.PDF",
+      "min_invoices": 4,
+      "min_items": 5,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
+    },
+    {
+      "country": "IN",
+      "file": "IN03_STMT_BRIM_STATEMENT_EPREINP0000737.PDF",
+      "min_invoices": 1,
+      "min_items": 7,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
+    },
+    {
+      "country": "IN",
+      "file": "IN03_STMT_BRIM_STATEMENT_EPREINP0000738.PDF",
+      "min_invoices": 1,
+      "min_items": 7,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
+    },
+    {
+      "country": "GB",
+      "file": "GB11_STMT_BRIM_STATEMENT_EPREGBP0000557_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 2,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
     }
   ]
 }

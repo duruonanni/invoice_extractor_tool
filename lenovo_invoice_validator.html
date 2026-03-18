@@ -777,40 +777,157 @@ function parseItemsTH(lines,fileName){
   return items;
 }
 
-function parseItemsIN(lines,fileName){
-  const items=[];let curInv='',curTr='';
-  const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
-  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|HSN|SAC/i;
-  const curRe=/INR\s*[\d,]+/;
-  // Full: pname qty INR up INR charges rate% INR tax INR total
-  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
-  const reNums=/^\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
+function parseItemsGB11(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const pidRe=/^(WBD[A-Z0-9]+)\b/i;
+  const fullRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)$/i;
+  const trancheInlineRe=/^Tranche\s*ID\s+(\S+)/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Invoice Messaging:|Export of services\.|Product Description Qty Unit Price Amount|For Tax Purposes Only GBP|Equivalent Exchange Rate|VAT |Total |Invoice Number Invoice Date Customer Number|Invoice to name|Sold to name|References|Payable on:|Please raise your claims|Transactions relating|Lenovo |This is a computer generated|Date =|page \d+ of \d+)/i;
+  const nextHeaderRe=/^(United Kingdom\b|NoteBook\b|Notebook\b|ThinkPad\b|ThinkBook\b|ThinkCentre\b)/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=clean(lines[j].text);
+      if(!nxt||stopRe.test(nxt)||pidRe.test(nxt)||trancheInlineRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||nextHeaderRe.test(nxt))break;
+      parts.push(nxt);endIdx=j;
+    }
+    return {suffix:merge(parts),endIdx};
+  }
   for(let i=0;i<lines.length;i++){
-    const{text:ln,page}=lines[i];
-    const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
-    if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)){
+      pending=[];curTr='';
+      for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+        const m=clean(lines[j].text).match(/^(\d{7,12})\b/);
+        if(m){curInv=m[1];break;}
+      }
       continue;
     }
-    const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
-    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
-    const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
-    const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
-    let m=reFull.exec(after);
+    const trM=ln.match(trancheInlineRe);
+    if(trM){curTr=trM[1];pending=[];continue;}
+    if(/^Tranche\s*ID$/i.test(ln)){pending=[];continue;}
+    if(stopRe.test(ln)){pending=[];continue;}
+    const m=ln.match(fullRe);
     if(m){
-      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
-      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
     }
-    m=reNums.exec(after);
+    if(nextHeaderRe.test(ln))pending=[ln];
+  }
+  return items;
+}
+
+function parseItemsMY(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/i;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)\b/i;
+  const trancheInlineRe=/^Tranche\s*ID\s+(\S+)/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Summary:|Total of Products\/Services|Total Service Tax|Total Including Tax|Invoice Number:|Sold To:|Invoice Date:|Payment by Wire:|Payment by Check\/Post To:|Reference Invoice Number:|Recurring Charge Period:|Remark:|Subject to B2B exemption|This invoice is issued|E\. & O\.E\.|page \d+ of \d+|TAX INVOICE|Registered Address:|Send Payment to:|Due Date:|Payment Term:|Billed on Statement:|Customer SST#:|Purchase Order:)/i;
+  const nextHeaderRe=/^(Core Protection Platform|Singularity|Device & App Inventory|Support Plan|Microsoft 365|eTech Services|Lenovo NB|Lenovo ThinkVision|Monitor\b|Lenovo ThinkPad|Lenovo ThinkBook|Preventive Maintenance|Corrective Maintenance|Scalefusion)/i;
+  const lineRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\s*(.*?)\s+([\d,]+\.?\d*)\s+RM\s*([\d,]+\.?\d*)\s+RM\s*([\d,]+\.?\d*)\s+RM\s*([\d,]+\.?\d*)$/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=clean(lines[j].text);
+      if(!nxt||stopRe.test(nxt)||strictPidRe.test(nxt)||trancheInlineRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||nextHeaderRe.test(nxt))break;
+      parts.push(nxt);endIdx=j;
+    }
+    return {suffix:merge(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    const invM=ln.match(/Invoice\s*Number:\s*(\d{7,12})/i);
+    if(invM){curInv=invM[1];curTr='';pending=[];continue;}
+    const trM=ln.match(trancheInlineRe);
+    if(trM){curTr=trM[1];pending=[];continue;}
+    if(stopRe.test(ln)){pending=[];continue;}
+    const m=ln.match(lineRe);
     if(m){
-      let pname='';
-      for(let j=i-1;j>=Math.max(0,i-3);j--){
-        const prev=lines[j].text.trim();if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,INR%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
-      }
-      const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
-      if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:0,total:pN(m[6]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    if(nextHeaderRe.test(ln)) {
+      pending.push(ln);
+      if(pending.length>2)pending=pending.slice(-2);
+    }
+  }
+  return items;
+}
+
+function parseItemsIN(lines,fileName){
+  const items=[];let curInv='',curTr='';let pendingDesc=[];let pidParts=[];
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Billing Summary|Tax Invoice No\.|Total Statement value|Total Invoice value|Payment Term:|For Lenovo|ORIGINAL FOR RECIPIENT|Tax Invoice|PAN:|GSTIN:|Insurance:|Name: Lenovo|Place of Supply|Bill To Country|Billed on Statement:|Send Payment to:|This invoice is issued|Terms&Conditions|page \d+ of \d+|Reference Invoice Number:|Recurring Charge Period:|Sr No Part No HSN\/SAC Qty Unit Total Value|Rate Amt|IGST|CGST|SGST|Refund to be claimed)/i;
+  const trancheInlineRe=/^Tranche\s*ID\s+(\S+)/i;
+  const qtyRowRe=/^(\d{6})\s+([\d,]+\.?\d*)\s+([A-Z]{2})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function isPidFragment(ln){
+    return /^[A-Za-z0-9_]{2,}$/.test(ln)&&/[A-Za-z]/.test(ln)&&!/\s/.test(ln)&&!/^EA$/i.test(ln);
+  }
+  function flushItemFromQty(ln,page){
+    const m=ln.match(qtyRowRe);
+    if(!m||!pidParts.length)return false;
+    const qty=pN(m[2]),up=pN(m[4]),charges=pN(m[5]),tax=pN(m[7])+pN(m[9])+pN(m[11])-pN(m[13]),total=pN(m[14]);
+    const pid=pidParts.join('');
+    const pname=merge(pendingDesc)||pid;
+    if(total>0)items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+    pendingDesc=[];pidParts=[];
+    return true;
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    const invM=ln.match(/(?:Invoice\s*No:|Invoice\s*Number:|Internal\s*Ref\.\s*No:)\s*(\d{7,12})/i);
+    if(invM){curInv=invM[1];curTr='';pendingDesc=[];pidParts=[];continue;}
+    const trM=ln.match(trancheInlineRe);
+    if(trM){curTr=trM[1];pendingDesc=[];pidParts=[];continue;}
+    if(stopRe.test(ln)){pendingDesc=[];pidParts=[];continue;}
+    if(flushItemFromQty(ln,page))continue;
+    if(isPidFragment(ln)){
+      pidParts.push(ln);
+      if(pidParts.length>4)pidParts=pidParts.slice(-4);
+      continue;
+    }
+    if(!/^\d{6,}$/.test(ln)){
+      pendingDesc.push(ln);
+      if(pendingDesc.length>3)pendingDesc=pendingDesc.slice(-3);
     }
   }
   return items;
@@ -1109,9 +1226,11 @@ function parseItemsGen(lines,fileName,knownInvs,country){
 // 鈹€鈹€ Router 鈹€鈹€
 function parseItems(country,lines,fileName,knownInvs){
   if(/^AT01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsAT01(lines,fileName);
+  if(/^GB11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsGB11(lines,fileName);
   if(/^NL01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL01(lines,fileName);
   if(/^NL11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL11(lines,fileName);
   if(country==='TH')return parseItemsTH(lines,fileName);
+  if(country==='MY')return parseItemsMY(lines,fileName);
   if(country==='JP')return parseItemsJP(lines,fileName);
   if(country==='US')return parseItemsUS(lines,fileName);
   if(country==='CA')return parseItemsUS(lines,fileName); // CA uses same 5-col $ format as US
