@@ -710,6 +710,73 @@ function parseItemsKR(lines,fileName){
   return items;
 }
 
+function parseItemsTH(lines,fileName){
+  const items=[];let curInv='',curTr='';let pending=[];
+  const pidRe=/^(WBD[A-Z0-9]+)\b/i;
+  const trancheRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
+  const nextHeaderRe=/^(Notebook\b|NB\b|ThinkVision\b|ThinkPad\b|ThinkCentre\b|ThinkCenter\b|Desktop\b|Workstation\b)/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Summary:|Total of Products and All Services|Total VAT|Total Including VAT|Invoice Number:|Sold To:|Invoice Date:|Payment by Wire:|Payment by Check\/Post To:|Reference Invoice Number:|Recurring Charge Period:|Subscription Service Detail|Product ID Product Name|This invoice is issued|E\. & O\.E\.|page \d+ of \d+|TAX INVOICE)/i;
+  const fullRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  const numsRe=/^(WBD[A-Z0-9]+)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  const skipPages=new Set();
+  for(const {text,page} of lines){
+    if(/CUSTOMER COPY|BILLING COPY/i.test(text))skipPages.add(page);
+  }
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      if(skipPages.has(lines[j].page))break;
+      const nxt=clean(lines[j].text);
+      if(!nxt||stopRe.test(nxt)||pidRe.test(nxt)||trancheRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||nextHeaderRe.test(nxt))break;
+      parts.push(nxt);endIdx=j;
+    }
+    return {suffix:merge(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    if(skipPages.has(lines[i].page))continue;
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    const invM=ln.match(/Invoice\s*Number:\s*(\d{7,12})/i);
+    if(invM){curInv=invM[1];curTr='';pending=[];continue;}
+    if(/^Tranche\s*ID$/i.test(ln)){
+      const prev=clean(lines[i-1]?.text||'');
+      curTr=trancheRe.test(prev)?prev:'';
+      pending=[];
+      continue;
+    }
+    if(stopRe.test(ln)){pending=[];continue;}
+    let m=ln.match(fullRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    m=ln.match(numsRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:pN(m[6]),total:pN(m[7]),taxRate:pN(m[5]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+    if(nextHeaderRe.test(ln)){
+      pending=[ln];
+    }
+  }
+  return items;
+}
+
 function parseItemsIN(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
@@ -1044,6 +1111,7 @@ function parseItems(country,lines,fileName,knownInvs){
   if(/^AT01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsAT01(lines,fileName);
   if(/^NL01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL01(lines,fileName);
   if(/^NL11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL11(lines,fileName);
+  if(country==='TH')return parseItemsTH(lines,fileName);
   if(country==='JP')return parseItemsJP(lines,fileName);
   if(country==='US')return parseItemsUS(lines,fileName);
   if(country==='CA')return parseItemsUS(lines,fileName); // CA uses same 5-col $ format as US

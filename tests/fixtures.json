@@ -56,6 +56,14 @@
       "min_items": 3,
       "max_failed_checks": 0,
       "max_mismatches": 0
+    },
+    {
+      "country": "TH",
+      "file": "TH01_STMT_BRIM_STATEMENT_EPRETHP0000463.PDF",
+      "min_invoices": 3,
+      "min_items": 9,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
     }
   ]
 }
