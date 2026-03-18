@@ -386,7 +386,14 @@ function fc(n,c){
   return s+(noD?Math.round(n).toLocaleString():n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
 }
 function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB'}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;')}
+function normText(t){
+  return t
+    .replace(/\u00e2\u201a\u00ac|\u20ac/g,'EUR')
+    .replace(/\u00c2\u00a3|\u00a3/g,'GBP')
+    .replace(/\u00c2\u00a5|\u00a5|\uffe5/g,'JPY')
+    .replace(/\u20a9/g,'KRW');
+}
 
 // ══════════════════════════════════════════════════════════════
 // PDF → lines WITH PAGE TRACKING
@@ -406,6 +413,7 @@ async function pdfToLines(file){
         const gap=curr.x-(prev.x+Math.abs(prev.w));
         text+=(gap>1?' ':'')+curr.str;
       }
+      text=normText(text);
       out.push({text,page:p});
     }
   }
@@ -444,7 +452,6 @@ function detectCountry(text,fn){
 // ── Shared: Billing Summary ──
 function parseBillingSummary(text){
   const res=[];let m;
-  const hasSummaryLabel=/Billing Summary|Invoice Summary|Summary of Invoices|Statement Summary/i.test(text);
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
   while((m=usP.exec(text))!==null){
@@ -686,7 +693,7 @@ function parseItemsEMEA(lines,fileName){
     const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Numéro\s*de\s*facture|Numero\s*fattura|Factuurnummer|Número\s*de\s*factura|Αριθμός\s*τιμολογίου)[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     // Two-line invoice number
-    if(/Invoice\s*Number|Rechnungsnummer|Numero\s*de\s*facture|Numero\s*fattura|Factuurnummer|Numero\s*de\s*factura|ODN/i.test(ln)&&!/(?:\d{7,12}|[A-Z]{2,}\d{6,})/.test(ln)) {
+    if(/Invoice\s*Number|Rechnungsnummer/i.test(ln)&&!/\d{7,12}/.test(ln)){
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
@@ -765,37 +772,18 @@ function parseItemsIN(lines,fileName){
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|HSN|SAC/i;
   const curRe=/INR\s*[\d,]+/;
-  const subTotRe=/Sub-Total\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/i;
-  const seenTotals=new Set();
   // Full: pname qty INR up INR charges rate% INR tax INR total
   const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
   const reNums=/^\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+INR\s*([\d,]+\.?\d*)\s+INR\s*([\d,]+\.?\d*)/;
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
-    const iim=ln.match(/Internal\s*Ref\.?\s*No\.?\s*:\s*(\d{7,12})/i);if(iim){curInv=iim[1];continue}
     const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
     if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
-    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln)){
-      let charges=0,total=0;
-      const m=subTotRe.exec(ln);
-      if(m){
-        charges=pN(m[1]);
-        total=pN(m[5]);
-      }else{
-        const nums=(ln.match(/[\d,]+\.?\d*/g)||[]).map(pN).filter(n=>n>0);
-        if(nums.length>=2){charges=nums[0];total=nums[nums.length-1];}
-      }
-      const key=curInv+'|'+charges+'|'+total;
-      if(charges>0&&total>0&&!seenTotals.has(key)){
-        seenTotals.add(key);
-        items.push({inv:curInv,tranche:curTr,pid:'SUBTOTAL',pname:'Sub-Total',qty:1,up:charges,charges:charges,tax:0,total:total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
-      }
-      continue;
-    }
+    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
     let m=reFull.exec(after);
@@ -839,8 +827,6 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   const reNoTax=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)');
   // PH plain no-tax: pname qty up charges total (4 numbers, no symbol, no tax column)
   const rePhNoTax=/(.+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/;
-  // PH/TH qty-first no-tax: qty up charges total (no name)
-  const rePhNoTaxNN=/^\s*([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/;
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     if(skipPages.has(page))continue;
@@ -907,21 +893,14 @@ function parseStatement(lines,fileName){
   let bs=parseBillingSummary(fullText);
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
-  let li=parseItems(country,lines,fileName,knownInvs);
-  // If no detail items but billing summary exists, synthesize one item per invoice
-  if(!li.length&&bs.length){
-    li=bs.map(r=>({inv:r.inv,tranche:'',pid:'SUMMARY',pname:'Detail pages missing',qty:1,up:r.charges,charges:r.charges,tax:r.tax,total:r.total,taxRate:0,crfRdf:(r.crf||0)+(r.rdf||0),srcFile:fileName,srcPage:0}));
-  }
-  // Detail totals per invoice
+  const li=parseItems(country,lines,fileName,knownInvs);  // Detail totals per invoice
   const dt={};
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}
     // If billing summary missing, derive from detail totals
   if(!bs.length&&Object.keys(dt).length){
     bsDerived=true;
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
-  }
-  const sT={charges:bs.reduce((s,r)=>s+r.charges,0),tax:bs.reduce((s,r)=>s+r.tax,0),total:bs.reduce((s,r)=>s+r.total,0)};
-  const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
+  }  const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
   // Comparison + unmapped
   const comp=[],unmS=[],unmD=[];
   const sSet=new Set(bs.map(r=>r.inv)),dSet=new Set(Object.keys(dt));
@@ -938,9 +917,6 @@ function parseStatement(lines,fileName){
   for(const inv of dSet){if(!sSet.has(inv)){const d=dt[inv];unmD.push(inv);comp.push({inv,sC:0,sT:0,sTot:0,dC:d.charges,dT:d.tax,dTot:d.total,dC_:d.charges,dT_:d.tax,dTot_:d.total,mC:false,mT:false,mTot:false,m:false,n:d.count,nw:d.nonWbd||0,st:'detail_only'})}}
   // Validation
   const vr=[];const noD=li.length===0;
-  if(!bs.length&&!li.length){
-    vr.push({nm:'PDF content not readable / unsupported',p:false,sv:'f',dt:'No Billing Summary and no Detail Line Items detected. PDF may be scanned, missing text layer, or uses unsupported layout.'});
-  }
   if(bsDerived){
     const invs=Object.keys(dt);
     vr.push({nm:`Billing Summary missing (${invs.length} invoice${invs.length>1?'s':''})`,p:false,sv:'f',dt:invs.join(', ')});
