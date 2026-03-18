@@ -1,6 +1,11 @@
 node_modules/
+.DS_Store
+Input/
 .npm/
+.npm-cache/
 .cache/
+release/
+src_script_raw.js
 *.log
 *.tmp
 *.bak

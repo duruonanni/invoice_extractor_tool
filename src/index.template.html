@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lenovo DaaS Invoice Validator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f7f7f9;
+  --surface:#ffffff;
+  --surface-2:#f0f2f5;
+  --border:#d8dde6;
+  --text:#162033;
+  --text-dim:#5d6778;
+  --accent:#e1251b;
+  --accent-hover:#b71c16;
+  --accent-soft:#fdeae8;
+  --green:#167c3b;
+  --green-soft:#e7f5eb;
+  --yellow:#9a6b00;
+  --yellow-soft:#fff4da;
+  --red:#bf2018;
+  --red-soft:#fdeae8;
+  --navy:#11184f;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.45}
+.hdr{display:flex;align-items:center;gap:12px;padding:14px 24px;background:var(--navy);border-bottom:3px solid var(--accent);color:#fff}
+.logo{width:34px;height:34px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700}
+.ver{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.12);font-size:11px}
+.container{max-width:1600px;margin:0 auto;padding:24px}
+.drop-zone{background:var(--surface);border:2px dashed var(--border);border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
+.drop-zone:hover,.drop-zone.dg{border-color:var(--accent);background:#fffafa}
+.drop-zone .icon{font-size:28px;opacity:.7}
+.drop-zone h3{margin:8px 0 4px;font-size:18px}
+.drop-zone p{margin:0;color:var(--text-dim)}
+.drop-zone input{display:none}
+.fl{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.fi{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.fi-type{font-size:11px;font-weight:700;color:var(--text-dim)}
+.fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs{font-size:11px;color:var(--text-dim)}
+.lb{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.lb.det{background:var(--yellow-soft);color:var(--yellow)}
+.lb.ok{background:var(--green-soft);color:var(--green)}
+.lb.err{background:var(--red-soft);color:var(--red)}
+.rb{border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:16px}
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn:hover:not(:disabled){background:var(--surface-2)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.btn-p:hover:not(:disabled){background:var(--accent-hover)}
+.pw{display:none;margin:0 0 18px}
+.pb{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.pf{height:100%;width:0;background:var(--accent);transition:width .2s}
+.pt{margin-top:6px;color:var(--text-dim);font-size:12px}
+.gcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.gc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer}
+.gc.a{border-color:var(--accent);box-shadow:0 0 0 2px rgba(225,37,27,.08)}
+.gc-f{font-size:22px}
+.gc-n{font-weight:700;margin:6px 0 8px}
+.gc-r{display:flex;justify-content:space-between;color:var(--text-dim);margin-top:4px}
+.gc-v.ok{color:var(--green)}
+.gc-v.er{color:var(--red)}
+.tabs,.stabs,.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+.tab,.st,.btn-s{border:1px solid var(--border);background:var(--surface);color:var(--text-dim);padding:7px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600}
+.tab.a,.st.a,.btn-s.a{background:var(--navy);border-color:var(--navy);color:#fff}
+.tp,.sp{display:none}
+.tp.a,.sp.a{display:block}
+.country-section,.statement-card{margin-bottom:18px}
+.tw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto}
+.tb{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--border);padding:10px 12px}
+.tb-meta{margin-left:10px;color:var(--text-dim);font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
+.tr{text-align:right}
+.mono{font-family:Consolas,"Courier New",monospace}
+.ro td{background:var(--accent-soft)}
+.tg{color:var(--green)}
+.tre{color:var(--red)}
+.td{color:var(--text-dim)}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:700;margin-bottom:8px}
+.validation-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0 12px}
+.vi{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.vi:last-child{border-bottom:none}
+.vc{min-width:46px;text-align:center;border-radius:999px;padding:4px 6px;font-size:11px;font-weight:700}
+.vc.p{background:var(--green-soft);color:var(--green)}
+.vc.f{background:var(--red-soft);color:var(--red)}
+.vc.w{background:var(--yellow-soft);color:var(--yellow)}
+.ib{padding:12px 14px;border-radius:12px;background:var(--yellow-soft);color:var(--yellow)}
+.ib.w{margin:10px 0}
+@media (max-width:800px){
+  .container{padding:16px}
+  .drop-zone{padding:28px 14px}
+}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="logo">L</div>
+  <div>
+    <div style="font-weight:700;font-size:18px">Lenovo DaaS Invoice Validator</div>
+  </div>
+  <div class="ver" id="verTag"></div>
+</div>
+<div class="container">
+  <div class="drop-zone" id="dz">
+    <div class="icon">PDF</div>
+    <h3 data-t="drop_title">Drop Lenovo DaaS invoice PDFs here, or click to select</h3>
+    <p data-t="drop_sub">Supports 31 Sales Orgs (AT/AU/BE/CA/CH/DE/ES/FR/GB/GR/HK/IE/IN/IT/JP/KR/MY/NL/NZ/PH/PT/SE/SG/TH/US) - Multiple files allowed</p>
+    <input type="file" id="fIn" accept=".pdf" multiple>
+  </div>
+  <div class="fl" id="fList"></div>
+  <div class="acts" id="aBar" style="display:none">
+    <button class="btn btn-p" id="runBtn" onclick="runAll()" disabled data-t="run_btn">Run Verification</button>
+    <button class="btn" id="exBtn" onclick="doExport()" style="display:none" data-t="export_btn">Export Excel</button>
+    <button class="btn" onclick="clearAll()" data-t="clear_btn">Clear All</button>
+  </div>
+  <div class="pw" id="pw">
+    <div class="pb"><div class="pf" id="pbar"></div></div>
+    <div class="pt" id="plab"></div>
+  </div>
+  <div id="gSum" style="display:none">
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:8px" data-t="results_by">Results by Country / Region</div>
+    <div class="gcs" id="gCards"></div>
+  </div>
+  <div id="results"></div>
+</div>
+<script>/*__SCRIPT__*/</script>
+</body>
+</html>

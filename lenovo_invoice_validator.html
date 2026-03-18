@@ -1,392 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
-<!--
-╔══════════════════════════════════════════════════════════════════╗
-║       Lenovo DaaS Invoice Validator — Version History            ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  v3.11.4  |  2026-03-17                                         ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] parseItemsJP: generalized product ID detection       ║
-║  • Previously only matched WBD-prefixed product IDs              ║
-║  • New pidRe matches any alphanumeric+underscore ID (5+ chars)  ║
-║  • Fixes JP invoice 100464443: 21RLS50S00_AAS, 78809709_AAS,   ║
-║    78809715_AAS, 21M4S3EX00_AAS now detected (4 non-WBD items) ║
-║  • Regression: all existing JP PDFs still pass                   ║
-║                                                                  ║
-║  v3.11.3  |  2026-03-17                                         ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [FEATURE] Non-WBD product ID detection and warning             ║
-║  • Comparison table: # column shows (N⚠) for non-WBD count     ║
-║  • Detail Line Items: non-WBD rows highlighted red, PID bold    ║
-║  • Validation: warning with per-invoice non-WBD PID listing     ║
-║                                                                  ║
-║  v3.11.2  |  2026-03-17                                         ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] CLP HK 9610500217/9610500219 "Summary Only"         ║
-║  • Root cause: skipPages regex /CUSTOMER\s+COPY/i matched       ║
-║    HK footer text "Customer Copy of Invoice" — NOT a Thai       ║
-║    copy marker. Pages 11,15 (with WBD data) were skipped.       ║
-║  • Fix: skipPages only active when country==='TH'               ║
-║  • Reverted v3.11.1 pdfToLines CID change (not needed —         ║
-║    PDF.js Node.js test confirmed no zero-width issue)           ║
-║  • Version tag now dynamically set from VERSION constant        ║
-║                                                                  ║
-║  v3.11.0  |  2026-03-16                                         ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] CLP HK invoice detection via collapsed-string       ║
-║  • parseItemsGen collapsed-string fallback for knownInvs        ║
-║  • (Superseded by v3.11.1 pdfToLines fix)                       ║
-║                                                                  ║
-║  v3.10.0  |  2026-03-16                                         ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] parseItemsGen: robust invoice number detection       ║
-║  • Previous regex only matched "Invoice Number XXXXX";          ║
-║    CLP HK uses "Tax Invoice No. XXXXX" → 9610500217 and         ║
-║    9610500219 were showing as Summary Only                       ║
-║  • New regex handles: "Invoice Number", "Invoice No.",          ║
-║    "Tax Invoice No." and two-line format (label on one line,    ║
-║    number on next line)                                          ║
-║  • Converted main loop to indexed for-loop for look-ahead       ║
-║  • Fixes CLP_Daas_July25: all 7 HK invoices now matched        ║
-║                                                                  ║
-║  v3.9.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] Grand Total row CRF/RDF-adjusted display             ║
-║  • Comparison table Grand Total row was using raw sT.total vs   ║
-║    dGT.total, causing spurious Δ for US statements where        ║
-║    billing summary Total excludes CRF/RDF                       ║
-║  • Grand Total row now uses sT.charges+sT.tax+dGT.crfRdf as    ║
-║    SUM reference, consistent with per-invoice comparison        ║
-║  • Fixes EPREUSP0001864 (Δ 124.72) & EPREUSP0001923 (Δ 14.00) ║
-║                                                                  ║
-║  [BUG FIX] pdfToLines smart character spacing                   ║
-║  • Some PDFs (e.g., HK CLP) encode text char-by-char; joining  ║
-║    with space produced "W B D 0 A 4 3 9 6 3" breaking WBD       ║
-║    detection. Now uses it.width to measure visual gap; only     ║
-║    inserts space between items when gap > 1 pt                  ║
-║  • Fixes HK 9610500217 / 9610500219 showing as Summary Only    ║
-║                                                                  ║
-║  [BUG FIX] parseItemsGen reNN fallback for no-name WBD items    ║
-║  • AU/HK WBD items with no product name text (e.g.,            ║
-║    "WBD0A68857 12.00 $ 44.79 $ 537.48 10.00% ...") failed      ║
-║    all existing patterns; new reNN regex matches qty-first      ║
-║  • Fixes AU04 EAUP0000932 Δ 72,537.41                          ║
-║  • Fixes HK 9610500213 Δ 9,213.00                              ║
-║                                                                  ║
-║  v3.8.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] TH duplicate copy triple-counting                     ║
-║  • TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/        ║
-║    BILLING COPY) — parseItemsGen now skips CUSTOMER COPY &       ║
-║    BILLING COPY pages, only parsing ORIGINAL COPY pages          ║
-║  • Fixes EPRETHP0000430: DET values were 3× SUM values           ║
-║                                                                  ║
-║  [BUG FIX] CRF/RDF false delta in comparison                     ║
-║  • US billing summary Total column = charges + tax only;         ║
-║    individual invoice pages include CRF/RDF in Grand Total       ║
-║  • Comparison now uses charges+tax+(DET crfRdf) as SUM ref       ║
-║    so CRF/RDF from invoice pages is not flagged as Δ             ║
-║  • Fixes EPREUSP0001923 invoice 100353391: Δ $5 CRF/RDF          ║
-║                                                                  ║
-║  v3.7.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] CH invoice number: two-line format support            ║
-║  • CH PDF: "Invoice Number  Invoice Date  Customer Number"       ║
-║    header on one line, number (e.g. 100426279) on next line      ║
-║  • parseItemsCH: peek at next line when Invoice Number header    ║
-║    has no digits → sets curInv → Detail items now mapped         ║
-║  • Fixes EPRECHP0000220 Summary Only / Detail Only mismatch      ║
-║                                                                  ║
-║  v3.6.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] Product name completeness — look-forward strategy     ║
-║  • JP reFull: look-back 1 line (prefix) + look-forward 1 line   ║
-║    e.g. "Japan With Autopilot VAIO Pro Fine Black.../1TB/11P"   ║
-║  • JP reNums: look-back 2 lines + look-forward 2 lines          ║
-║    e.g. "Individual Order - Japan ThinkCentre... Core™ i5..."   ║
-║  • US reNums: look-forward 1 line suffix e.g. "512G US"         ║
-║  • CH reNums: look-forward 1 line suffix e.g. "1151/Swiss"      ║
-║                                                                  ║
-║  v3.5.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [FEATURE] Switzerland (CH) support — EPRECHP* PDFs             ║
-║  • New parseItemsCH: CHF currency, decimal qty, 8.10% VAT        ║
-║  • Full + numbers-only look-back patterns (same as JP/US)        ║
-║  • detectCountry: CH/EPRECHP filename + CHF/Schweiz text cues    ║
-║  • parseBillingSummary: CHF pattern added                        ║
-║  • CM map: 🇨🇭 Switzerland / CHF added                          ║
-║  • detectCountry: tightened all rules with EPRE* regex           ║
-║                                                                  ║
-║  v3.4.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [FEATURE] Smart Export filename                                  ║
-║  • Format: {stmtNum}_{lang}_Invoice_Validator_Export_{date}.xlsx ║
-║  • e.g. EPREJPP0000568_JA_Invoice_Validator_Export_20260316.xlsx ║
-║  • lang extracted from source filename suffix (_JA, _EN, etc.)   ║
-║                                                                  ║
-║  v3.3.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] parseItemsJP: multi-line product name support         ║
-║  • Look-back strategy (same as US v3.1.0) for WBD lines with    ║
-║    no product name on same line (product name on prior lines)    ║
-║  • Fixes EPREJPP0000568 Invoice 100464452 WBD0B01541 (¥6,690)   ║
-║                                                                  ║
-║  v3.2.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [UI] Lenovo official brand color scheme                         ║
-║  • Header: Deep Navy (#11184F) + Lenovo Red accent bar           ║
-║  • Primary accent: Lenovo Signature Red (#E1251B)                ║
-║  • Table headers: Navy (#11184F) + Red bottom border             ║
-║  • Country-level hierarchy rows: Navy left border                ║
-║  • Status colors: Pale Red (#F0C7BF), Mid Red 2 (#F26A52)        ║
-║  • Text: Black (#1E0013) / Deep Gray (#4E444E) / Mid Gray        ║
-║                                                                  ║
-║  v3.1.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [BUG FIX] parseItemsUS: multi-line product name support         ║
-║  • Look-back strategy: when WBD line has no product name,        ║
-║    scan up to 3 prior lines to reconstruct product name          ║
-║  • Prevents misparse / dropped items for wrapped product names   ║
-║  • Fixes EPREUSP0000988 (100125197-201) and similar US PDFs      ║
-║                                                                  ║
-║  v3.0.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  [MAJOR REWRITE — UI / i18n / Parsers / Hierarchy]               ║
-║  Features:                                                       ║
-║  • Light theme inspired by Claude's default color palette        ║
-║  • Multi-language UI: English, 中文, Español (header switcher)   ║
-║  • Independent parsers per country (parseJP, parseUS, parseGen)  ║
-║  • Source file + page tracking on every line item                ║
-║  • Hierarchy tree view: Country → Customer → Period → Tranche    ║
-║  • Collapsible tree with per-level stats aggregation             ║
-║  Bug fixes:                                                      ║
-║  • Improved pdfToLines to return page numbers per line           ║
-║  • Parser architecture now extensible per-country                ║
-║                                                                  ║
-║  v2.0.0  |  2026-03-16                                          ║
-║  ────────────────────────────────────────────────────────────    ║
-║  • Hierarchy: Country → Customer → Statement                     ║
-║  • Summary ↔ Detail comparison with unmapped invoice detection   ║
-║  • Version tracking system, manual Run button + progress bar     ║
-║  • Country group cards, tab navigation, Excel 5-sheet export     ║
-║                                                                  ║
-║  v1.4.0  |  2026-03-16  [BUG FIX]                               ║
-║  • US Billing Summary 5-col fix (CRF/RDF misparse)              ║
-║  • US Line Items Pattern D (no % column)                         ║
-║                                                                  ║
-║  v1.3.0  |  2026-03-16                                          ║
-║  • Full WBD line-item parsing, Y-coordinate line reconstruction  ║
-║  • Multi-pattern regex (AU/HK $+%, JP ¥+%, TH no-symbol)        ║
-║                                                                  ║
-║  v1.0.0  |  2026-03-16  — Initial release                       ║
-╚══════════════════════════════════════════════════════════════════╝
--->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lenovo DaaS Invoice Validator v3.0</title>
+<title>Lenovo DaaS Invoice Validator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
-  /* Lenovo Brand Palette */
-  --bg:#F8F8F8;--surface:#FFFFFF;--surface-2:#F4F3F4;--surface-3:#E6E2E4;
-  --border:#E6E2E4;--border-light:#D0CCCE;
-  --text:#1E0013;--text-dim:#4E444E;--text-muted:#ABA8B1;
-  /* Lenovo Signature Red */
-  --accent:#E1251B;--accent-hover:#B8252E;--accent-dim:rgba(225,37,27,.07);--accent-light:rgba(225,37,27,.14);
-  /* Status colors */
-  --green:#1A7F42;--green-dim:rgba(26,127,66,.08);--green-light:#D4EDDA;
-  --red:#E1251B;--red-dim:rgba(225,37,27,.07);--red-light:#F0C7BF;
-  --yellow:#8A6D00;--yellow-dim:rgba(138,109,0,.08);--yellow-light:#FFF3CD;
-  --orange:#F26A52;--orange-dim:rgba(242,106,82,.08);--orange-light:#FCE4DF;
-  /* Lenovo Deep Blue */
-  --blue:#294E95;--blue-dim:rgba(41,78,149,.08);
-  /* Lenovo header/hierarchy navy */
-  --navy:#11184F;--navy-mid:#294E95;--pale-blue:#C9D0F0;
+  --bg:#f7f7f9;
+  --surface:#ffffff;
+  --surface-2:#f0f2f5;
+  --border:#d8dde6;
+  --text:#162033;
+  --text-dim:#5d6778;
+  --accent:#e1251b;
+  --accent-hover:#b71c16;
+  --accent-soft:#fdeae8;
+  --green:#167c3b;
+  --green-soft:#e7f5eb;
+  --yellow:#9a6b00;
+  --yellow-soft:#fff4da;
+  --red:#bf2018;
+  --red-soft:#fdeae8;
+  --navy:#11184f;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.55;font-size:13px}
-.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
-
-/* ── Header ── */
-.hdr{padding:14px 28px;background:var(--navy);border-bottom:3px solid var(--accent);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.hdr-logo{width:32px;height:32px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;letter-spacing:-1px}
-.hdr h1{font-size:16px;font-weight:600;letter-spacing:-.3px;color:#fff}
-.hdr .ver{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.15);color:#fff;font-weight:600;font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.25)}
-.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.lang-sw{padding:4px 8px;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:12px;font-family:inherit;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
-.lang-sw option{background:var(--navy);color:#fff}
-
-/* ── Layout ── */
-.container{max-width:1600px;margin:0 auto;padding:20px 28px}
-
-/* ── Upload ── */
-.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:14px}
-.drop-zone:hover,.drop-zone.dg{border-color:var(--accent);background:var(--accent-dim)}
-.drop-zone .icon{font-size:32px;margin-bottom:8px;opacity:.5}
-.drop-zone h3{font-size:14px;font-weight:500;margin-bottom:3px}
-.drop-zone p{font-size:11px;color:var(--text-muted)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.45}
+.hdr{display:flex;align-items:center;gap:12px;padding:14px 24px;background:var(--navy);border-bottom:3px solid var(--accent);color:#fff}
+.logo{width:34px;height:34px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700}
+.ver{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.12);font-size:11px}
+.container{max-width:1600px;margin:0 auto;padding:24px}
+.drop-zone{background:var(--surface);border:2px dashed var(--border);border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
+.drop-zone:hover,.drop-zone.dg{border-color:var(--accent);background:#fffafa}
+.drop-zone .icon{font-size:28px;opacity:.7}
+.drop-zone h3{margin:8px 0 4px;font-size:18px}
+.drop-zone p{margin:0;color:var(--text-dim)}
 .drop-zone input{display:none}
-
-/* ── File list ── */
-.fl{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
-.fi{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;display:flex;align-items:center;gap:9px;font-size:12px;animation:si .2s ease}
-@keyframes si{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
-.fi .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fi .fs{font-size:10px;color:var(--text-muted);flex-shrink:0}
-.lb{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;flex-shrink:0}
-.lb.det{background:var(--yellow-light);color:var(--yellow)}
-.lb.ok{background:var(--green-light);color:var(--green)}
-.lb.err{background:var(--red-light);color:var(--red)}
-.rb{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:15px;padding:2px;transition:color .15s;flex-shrink:0}
-.rb:hover{color:var(--red)}
-
-/* ── Buttons ── */
-.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;transition:all .15s}
-.btn:hover:not(:disabled){background:var(--surface-3);border-color:var(--border-light)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn-p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;font-size:13px}
-.btn-p:hover:not(:disabled){background:var(--accent-hover)}
-.btn-s{padding:4px 10px;font-size:11px}
-.acts{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
-
-/* ── Progress ── */
-.pw{margin-bottom:18px;display:none}
-.pb{height:5px;background:var(--surface-3);border-radius:3px;overflow:hidden}
-.pf{height:100%;background:var(--accent);width:0%;transition:width .3s}
-.pt{font-size:11px;color:var(--text-dim);margin-top:3px}
-
-/* ── Group cards ── */
-.gcs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
-.gc{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:12px 16px;cursor:pointer;transition:all .2s;min-width:155px}
-.gc:hover,.gc.a{border-color:var(--accent);background:rgba(225,37,27,.05)}
-.gc-f{font-size:1.4rem;margin-bottom:3px}
-.gc-n{font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)}
-.gc-r{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:1px}
-.gc-v{font-weight:600}.gc-v.ok{color:var(--green)}.gc-v.er{color:var(--red)}
-
-/* ── Tabs ── */
-.tabs{display:flex;gap:1px;border-bottom:2px solid var(--border)}
-.tab{padding:7px 16px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-dim);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;font-family:inherit}
-.tab:hover{color:var(--text)}.tab.a{color:var(--accent);border-bottom-color:var(--accent)}
-.tp{display:none}.tp.a{display:block}
-
-/* ── Sub-tabs ── */
-.stabs{display:flex;gap:1px;background:var(--surface);border:1px solid var(--border);border-bottom:none;padding:6px 12px 0;flex-wrap:wrap}
-.st{padding:5px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:500;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
-.st:hover{color:var(--text)}.st.a{color:var(--accent);border-bottom-color:var(--accent)}
-.sp{display:none}.sp.a{display:block}
-
-/* ── Toolbar ── */
-.tb{background:var(--surface-2);border:1px solid var(--border);border-top:none;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-dim)}
-
-/* ── Tables ── */
-.tw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto;max-height:520px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{padding:7px 9px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--navy);border-bottom:2px solid var(--accent);white-space:nowrap;position:sticky;top:0;z-index:2}
-tbody td{padding:5px 9px;border-bottom:1px solid var(--border);white-space:nowrap}
-tbody tr:hover{background:var(--surface-2)}
+.fl{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.fi{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.fi-type{font-size:11px;font-weight:700;color:var(--text-dim)}
+.fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs{font-size:11px;color:var(--text-dim)}
+.lb{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.lb.det{background:var(--yellow-soft);color:var(--yellow)}
+.lb.ok{background:var(--green-soft);color:var(--green)}
+.lb.err{background:var(--red-soft);color:var(--red)}
+.rb{border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:16px}
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn:hover:not(:disabled){background:var(--surface-2)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.btn-p:hover:not(:disabled){background:var(--accent-hover)}
+.pw{display:none;margin:0 0 18px}
+.pb{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.pf{height:100%;width:0;background:var(--accent);transition:width .2s}
+.pt{margin-top:6px;color:var(--text-dim);font-size:12px}
+.gcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.gc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer}
+.gc.a{border-color:var(--accent);box-shadow:0 0 0 2px rgba(225,37,27,.08)}
+.gc-f{font-size:22px}
+.gc-n{font-weight:700;margin:6px 0 8px}
+.gc-r{display:flex;justify-content:space-between;color:var(--text-dim);margin-top:4px}
+.gc-v.ok{color:var(--green)}
+.gc-v.er{color:var(--red)}
+.tabs,.stabs,.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+.tab,.st,.btn-s{border:1px solid var(--border);background:var(--surface);color:var(--text-dim);padding:7px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600}
+.tab.a,.st.a,.btn-s.a{background:var(--navy);border-color:var(--navy);color:#fff}
+.tp,.sp{display:none}
+.tp.a,.sp.a{display:block}
+.country-section,.statement-card{margin-bottom:18px}
+.tw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto}
+.tb{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--border);padding:10px 12px}
+.tb-meta{margin-left:10px;color:var(--text-dim);font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
 .tr{text-align:right}
-.tg{color:var(--green)}.tre{color:var(--red)}.ty{color:var(--yellow)}.td{color:var(--text-dim)}.to{color:var(--orange)}
-.re td{background:var(--red-light)!important}
-.ro td{background:var(--orange-light)!important}
-.rs{background:var(--surface-3)!important;font-weight:600}
-
-/* ── Hierarchy ── */
-.hw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto;max-height:600px}
-.ht{width:100%;border-collapse:collapse;font-size:12px}
-.ht th{padding:7px 9px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--navy);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2}
-.ht td{padding:5px 9px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
-.ht tr:hover td{background:var(--surface-2)}
-.hl0>td:first-child{font-weight:700;background:rgba(17,24,79,.06);border-left:3px solid var(--navy)}
-.hl1>td:first-child{padding-left:22px}.hl2>td:first-child{padding-left:42px}.hl3>td:first-child{padding-left:62px}
-.hl4>td:first-child{padding-left:82px;font-size:11px;color:var(--text-dim)}
-.htg{background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:9px;padding:1px 5px;margin-right:4px;transition:background .1s}
-.htg:hover{background:var(--surface-3)}
-.src{display:inline-block;margin-left:6px;padding:1px 5px;background:var(--surface-3);border-radius:8px;font-size:10px;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
-
-/* ── Info box ── */
-.ib{padding:10px 14px;border-radius:8px;font-size:11px;margin:10px 12px;display:flex;align-items:flex-start;gap:8px}
-.ib.w{background:var(--orange-light);color:var(--orange)}.ib.g{background:var(--green-light);color:var(--green)}.ib.f{background:var(--red-light);color:var(--red)}
-
-/* ── Validation ── */
-.vi{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
+.mono{font-family:Consolas,"Courier New",monospace}
+.ro td{background:var(--accent-soft)}
+.tg{color:var(--green)}
+.tre{color:var(--red)}
+.td{color:var(--text-dim)}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:700;margin-bottom:8px}
+.validation-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0 12px}
+.vi{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .vi:last-child{border-bottom:none}
-.vc{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
-.vc.p{background:var(--green-light);color:var(--green)}.vc.f{background:var(--red-light);color:var(--red)}.vc.w{background:var(--yellow-light);color:var(--yellow)}
-
-@media(max-width:768px){.container{padding:14px}.drop-zone{padding:24px 14px}.gcs{flex-direction:column}}
+.vc{min-width:46px;text-align:center;border-radius:999px;padding:4px 6px;font-size:11px;font-weight:700}
+.vc.p{background:var(--green-soft);color:var(--green)}
+.vc.f{background:var(--red-soft);color:var(--red)}
+.vc.w{background:var(--yellow-soft);color:var(--yellow)}
+.ib{padding:12px 14px;border-radius:12px;background:var(--yellow-soft);color:var(--yellow)}
+.ib.w{margin:10px 0}
+@media (max-width:800px){
+  .container{padding:16px}
+  .drop-zone{padding:28px 14px}
+}
 </style>
 </head>
 <body>
 <div class="hdr">
-  <div class="hdr-logo">L</div>
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <h1 data-t="title">Lenovo DaaS Invoice Validator</h1>
-    <span class="ver" id="verTag"></span>
+  <div class="logo">L</div>
+  <div>
+    <div style="font-weight:700;font-size:18px">Lenovo DaaS Invoice Validator</div>
   </div>
-  <div class="hdr-right">
-    <select class="lang-sw" id="langSw" onchange="setLang(this.value)">
-      <option value="en">English</option>
-      <option value="zh">中文</option>
-      <option value="es">Español</option>
-    </select>
-  </div>
+  <div class="ver" id="verTag"></div>
 </div>
 <div class="container">
   <div class="drop-zone" id="dz">
-    <div class="icon">📄</div>
+    <div class="icon">PDF</div>
     <h3 data-t="drop_title">Drop Lenovo DaaS invoice PDFs here, or click to select</h3>
-    <p data-t="drop_sub">Supports AU · HK · JP · TH · US — Multiple files allowed</p>
+    <p data-t="drop_sub">Supports 31 Sales Orgs (AT/AU/BE/CA/CH/DE/ES/FR/GB/GR/HK/IE/IN/IT/JP/KR/MY/NL/NZ/PH/PT/SE/SG/TH/US) - Multiple files allowed</p>
     <input type="file" id="fIn" accept=".pdf" multiple>
   </div>
   <div class="fl" id="fList"></div>
   <div class="acts" id="aBar" style="display:none">
-    <button class="btn btn-p" id="runBtn" onclick="runAll()" disabled data-t="run_btn">▶ Run Verification</button>
-    <button class="btn" onclick="doExport()" id="exBtn" style="display:none" data-t="export_btn">📥 Export Excel</button>
-    <button class="btn" onclick="clearAll()" data-t="clear_btn">🗑 Clear All</button>
+    <button class="btn btn-p" id="runBtn" onclick="runAll()" disabled data-t="run_btn">Run Verification</button>
+    <button class="btn" id="exBtn" onclick="doExport()" style="display:none" data-t="export_btn">Export Excel</button>
+    <button class="btn" onclick="clearAll()" data-t="clear_btn">Clear All</button>
   </div>
-  <div class="pw" id="pw"><div class="pb"><div class="pf" id="pbar"></div></div><div class="pt" id="plab"></div></div>
+  <div class="pw" id="pw">
+    <div class="pb"><div class="pf" id="pbar"></div></div>
+    <div class="pt" id="plab"></div>
+  </div>
   <div id="gSum" style="display:none">
-    <div style="font-size:10px;font-weight:600;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px" data-t="results_by">Results by Country / Region</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:8px" data-t="results_by">Results by Country / Region</div>
     <div class="gcs" id="gCards"></div>
   </div>
   <div id="results"></div>
 </div>
-
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const VERSION='3.12.4';
 document.getElementById('verTag').textContent='v'+VERSION;
 
-// ══════════════════════════════════════════════════════════════
-// i18n
-// ══════════════════════════════════════════════════════════════
 const I={
-en:{title:'Lenovo DaaS Invoice Validator',drop_title:'Drop Lenovo DaaS invoice PDFs here, or click to select',drop_sub:'Supports 31 Sales Orgs (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — Multiple files allowed',run_btn:'▶ Run Verification',export_btn:'📥 Export Excel',clear_btn:'🗑 Clear All',results_by:'Results by Country / Region',stmts:'Statements',invoices:'Invoices',items:'Line Items',unmapped:'Unmapped',issues:'Issues',matched:'Matched',sum_only:'Detail Pages Missing',det_only:'Detail Only',comparison:'Summary ↔ Detail Comparison',hierarchy:'Hierarchy',all_errors:'All Errors',billing_sum:'Billing Summary',detail_items:'Detail Line Items',validation:'Validation',checks:'checks',grand_total:'GRAND TOTAL',invoice:'Invoice',status:'Status',charges:'Charges',tax:'Tax',total:'Total',diff:'Diff',match:'Match',qty:'Qty',unit_price:'Unit Price',product:'Product',name:'Name',tranche:'Tranche',file:'File',page:'Page',no_items:'No line items found',detecting:'Detecting…',parsing:'parsing…',starting:'Starting…',rendering:'Rendering…',done:'Done',ok:'OK',error:'ERROR',pass:'PASS',fail:'FAIL'},
-zh:{title:'联想 DaaS 发票验证工具',drop_title:'将 Lenovo DaaS 发票 PDF 拖放到此处，或点击选择',drop_sub:'支持31个销售组织 (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — 可同时上传多个文件',run_btn:'▶ 开始验证',export_btn:'📥 导出 Excel',clear_btn:'🗑 清空全部',results_by:'按国家/地区分组',stmts:'账单',invoices:'发票',items:'行项目',unmapped:'未匹配',issues:'问题',matched:'已匹配',sum_only:'仅在汇总',det_only:'仅在明细',comparison:'汇总 ↔ 明细 对比',hierarchy:'层级视图',all_errors:'全部错误',billing_sum:'账单汇总',detail_items:'明细行项目',validation:'验证检查',checks:'项检查',grand_total:'合计',invoice:'发票号',status:'状态',charges:'费用',tax:'税额',total:'总额',diff:'差异',match:'匹配',qty:'数量',unit_price:'单价',product:'产品编码',name:'产品名称',tranche:'Tranche',file:'文件',page:'页码',no_items:'未找到行项目',detecting:'检测中…',parsing:'解析中…',starting:'启动中…',rendering:'渲染中…',done:'完成',ok:'正常',error:'错误',pass:'通过',fail:'不通过'},
-es:{title:'Validador de Facturas Lenovo DaaS',drop_title:'Arrastre archivos PDF de facturas Lenovo DaaS aquí, o haga clic para seleccionar',drop_sub:'Soporta 31 Orgs de Ventas (AT·AU·BE·CA·CH·DE·ES·FR·GB·GR·HK·IE·IN·IT·JP·KR·MY·NL·NZ·PH·PT·SE·SG·TH·US) — Se permiten múltiples archivos',run_btn:'▶ Ejecutar Verificación',export_btn:'📥 Exportar Excel',clear_btn:'🗑 Limpiar Todo',results_by:'Resultados por País / Región',stmts:'Declaraciones',invoices:'Facturas',items:'Líneas',unmapped:'Sin coincidencia',issues:'Problemas',matched:'Coincidente',sum_only:'Solo en Resumen',det_only:'Solo en Detalle',comparison:'Resumen ↔ Detalle Comparación',hierarchy:'Jerarquía',all_errors:'Todos los Errores',billing_sum:'Resumen de Facturación',detail_items:'Líneas de Detalle',validation:'Validación',checks:'verificaciones',grand_total:'TOTAL GENERAL',invoice:'Factura',status:'Estado',charges:'Cargos',tax:'Impuesto',total:'Total',diff:'Dif.',match:'Coincide',qty:'Cant.',unit_price:'Precio Unit.',product:'Producto',name:'Nombre',tranche:'Tranche',file:'Archivo',page:'Página',no_items:'No se encontraron líneas de detalle',detecting:'Detectando…',parsing:'analizando…',starting:'Iniciando…',rendering:'Renderizando…',done:'Listo',ok:'OK',error:'ERROR',pass:'APROBADO',fail:'FALLIDO'}
+  en:{
+    title:'Lenovo DaaS Invoice Validator',
+    drop_title:'Drop Lenovo DaaS invoice PDFs here, or click to select',
+    drop_sub:'Supports 31 Sales Orgs (AT/AU/BE/CA/CH/DE/ES/FR/GB/GR/HK/IE/IN/IT/JP/KR/MY/NL/NZ/PH/PT/SE/SG/TH/US) - Multiple files allowed',
+    run_btn:'Run Verification',
+    export_btn:'Export Excel',
+    clear_btn:'Clear All',
+    results_by:'Results by Country / Region',
+    stmts:'Statements',
+    invoices:'Invoices',
+    items:'Line Items',
+    unmapped:'Unmapped',
+    issues:'Issues',
+    matched:'Matched',
+    sum_only:'Detail Pages Missing',
+    det_only:'Detail Only',
+    comparison:'Summary vs Detail Comparison',
+    hierarchy:'Hierarchy',
+    all_errors:'All Errors',
+    billing_sum:'Billing Summary',
+    detail_items:'Detail Line Items',
+    validation:'Validation',
+    checks:'checks',
+    grand_total:'GRAND TOTAL',
+    invoice:'Invoice',
+    status:'Status',
+    charges:'Charges',
+    tax:'Tax',
+    total:'Total',
+    diff:'Diff',
+    match:'Match',
+    qty:'Qty',
+    unit_price:'Unit Price',
+    product:'Product',
+    name:'Name',
+    tranche:'Tranche',
+    file:'File',
+    page:'Page',
+    no_items:'No line items found',
+    detecting:'Detecting',
+    parsing:'Parsing',
+    starting:'Starting',
+    rendering:'Rendering',
+    done:'Done',
+    ok:'OK',
+    error:'ERROR',
+    pass:'PASS',
+    fail:'FAIL'
+  },
+  zh:{},
+  es:{}
 };
 let curLang='en';
 function t(k){return I[curLang][k]||I.en[k]||k}
 function setLang(l){curLang=l;document.querySelectorAll('[data-t]').forEach(el=>{const k=el.dataset.t;if(I[l][k])el.textContent=I[l][k]});if(analysisResults)renderResults()}
 
-// ══════════════════════════════════════════════════════════════
-// CONSTANTS & STATE
-// ══════════════════════════════════════════════════════════════
-const CM={AT:{flag:'🇦🇹',label:'Austria',cur:'EUR'},AU:{flag:'🇦🇺',label:'Australia',cur:'AUD'},BE:{flag:'🇧🇪',label:'Belgium',cur:'EUR'},CA:{flag:'🇨🇦',label:'Canada',cur:'CAD'},CH:{flag:'🇨🇭',label:'Switzerland',cur:'CHF'},DE:{flag:'🇩🇪',label:'Germany',cur:'EUR'},ES:{flag:'🇪🇸',label:'Spain',cur:'EUR'},FR:{flag:'🇫🇷',label:'France',cur:'EUR'},GB:{flag:'🇬🇧',label:'United Kingdom',cur:'GBP'},GR:{flag:'🇬🇷',label:'Greece',cur:'EUR'},HK:{flag:'🇭🇰',label:'Hong Kong',cur:'HKD'},IE:{flag:'🇮🇪',label:'Ireland',cur:'EUR'},IN:{flag:'🇮🇳',label:'India',cur:'INR'},IT:{flag:'🇮🇹',label:'Italy',cur:'EUR'},JP:{flag:'🇯🇵',label:'Japan',cur:'JPY'},KR:{flag:'🇰🇷',label:'South Korea',cur:'KRW'},MY:{flag:'🇲🇾',label:'Malaysia',cur:'MYR'},NL:{flag:'🇳🇱',label:'Netherlands',cur:'EUR'},NZ:{flag:'🇳🇿',label:'New Zealand',cur:'NZD'},PH:{flag:'🇵🇭',label:'Philippines',cur:'PHP'},PT:{flag:'🇵🇹',label:'Portugal',cur:'EUR'},SE:{flag:'🇸🇪',label:'Sweden',cur:'SEK'},SG:{flag:'🇸🇬',label:'Singapore',cur:'SGD'},TH:{flag:'🇹🇭',label:'Thailand',cur:'THB'},US:{flag:'🇺🇸',label:'United States',cur:'USD'},OTHER:{flag:'🌐',label:'Other',cur:'USD'}};
+const CM={AT:{flag:'AT',label:'Austria',cur:'EUR'},AU:{flag:'AU',label:'Australia',cur:'AUD'},BE:{flag:'BE',label:'Belgium',cur:'EUR'},CA:{flag:'CA',label:'Canada',cur:'CAD'},CH:{flag:'CH',label:'Switzerland',cur:'CHF'},DE:{flag:'DE',label:'Germany',cur:'EUR'},ES:{flag:'ES',label:'Spain',cur:'EUR'},FR:{flag:'FR',label:'France',cur:'EUR'},GB:{flag:'GB',label:'United Kingdom',cur:'GBP'},GR:{flag:'GR',label:'Greece',cur:'EUR'},HK:{flag:'HK',label:'Hong Kong',cur:'HKD'},IE:{flag:'IE',label:'Ireland',cur:'EUR'},IN:{flag:'IN',label:'India',cur:'INR'},IT:{flag:'IT',label:'Italy',cur:'EUR'},JP:{flag:'JP',label:'Japan',cur:'JPY'},KR:{flag:'KR',label:'South Korea',cur:'KRW'},MY:{flag:'MY',label:'Malaysia',cur:'MYR'},NL:{flag:'NL',label:'Netherlands',cur:'EUR'},NZ:{flag:'NZ',label:'New Zealand',cur:'NZD'},PH:{flag:'PH',label:'Philippines',cur:'PHP'},PT:{flag:'PT',label:'Portugal',cur:'EUR'},SE:{flag:'SE',label:'Sweden',cur:'SEK'},SG:{flag:'SG',label:'Singapore',cur:'SGD'},TH:{flag:'TH',label:'Thailand',cur:'THB'},US:{flag:'US',label:'United States',cur:'USD'},OTHER:{flag:'OT',label:'Other',cur:'USD'}};
 let fileEntries=[],eid=0,analysisResults=null;
 const pN=s=>s?parseFloat(String(s).replace(/,/g,''))||0:0;
 function fc(n,c){
-  const sym={JPY:'¥',EUR:'€',GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'₩',INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'฿',HKD:'HK$',USD:'$'};
+  const sym={JPY:'JPY ',EUR:'EUR ',GBP:'GBP ',CHF:'CHF ',SEK:'SEK ',KRW:'KRW ',INR:'INR ',MYR:'RM ',PHP:'PHP ',AUD:'$',NZD:'NZ$',CAD:'CA$',SGD:'S$',THB:'THB ',HKD:'HK$',USD:'$'};
   const s=sym[c]||'';const noD=c==='JPY'||c==='KRW';
   return s+(noD?Math.round(n).toLocaleString():n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
 }
 function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB'}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;')}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function normText(t){
   return t
     .replace(/\u00e2\u201a\u00ac|\u20ac/g,'EUR')
@@ -395,9 +210,6 @@ function normText(t){
     .replace(/\u20a9/g,'KRW');
 }
 
-// ══════════════════════════════════════════════════════════════
-// PDF → lines WITH PAGE TRACKING
-// ══════════════════════════════════════════════════════════════
 async function pdfToLines(file){
   const buf=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,out=[];
   for(let p=1;p<=pdf.numPages;p++){
@@ -420,37 +232,99 @@ async function pdfToLines(file){
   return out;
 }
 
-// ══════════════════════════════════════════════════════════════
-// COUNTRY DETECTION
-// ══════════════════════════════════════════════════════════════
+// 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅?// COUNTRY DETECTION
+// 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅?
 function detectCountry(text,fn){
   // Primary: filename pattern EPRE{XX}P (e.g. EPREATP, EPREUSP) or {XX}nn_ prefix
   const fm=fn.match(/EPRE([A-Z]{2})P/i)||fn.match(/^([A-Z]{2})\d+_/i);
   if(fm){const cc=fm[1].toUpperCase();if(CM[cc])return cc;}
-  // Special: CLP prefix → HK (CLP HK invoices)
+  // Special: CLP prefix => HK
   if(fn.includes('CLP'))return'HK';
   // Fallback: content-based detection
-  if(text.includes('レノボ')||text.includes('JPY'))return'JP';
-  if(text.includes('Schweiz')||text.includes('CHF'))return'CH';
-  if(text.includes('Hong Kong')||text.includes('HKD'))return'HK';
-  if(text.includes('GST')&&text.includes('AUD'))return'AU';
-  if(text.includes('Thailand')||text.includes('THB'))return'TH';
-  if(/₩|KRW/.test(text))return'KR';
+  if(/\bJPY\b/.test(text))return'JP';
+  if(/\bCHF\b/.test(text))return'CH';
+  if(/\bHKD\b/.test(text))return'HK';
+  if(/\bAUD\b/.test(text))return'AU';
+  if(/\bTHB\b/.test(text))return'TH';
+  if(/\bKRW\b/.test(text))return'KR';
   if(/\bINR\b/.test(text))return'IN';
-  if(/\bRM\s/.test(text))return'MY';
+  if(/\bRM\b/.test(text))return'MY';
   if(/\bSEK\b/.test(text))return'SE';
   if(/\bGBP\b/.test(text))return'GB';
-  if(/€/.test(text))return'AT'; // generic EUR fallback
-  if(text.includes('USD'))return'US';
+  if(/\bEUR\b/.test(text))return'AT';
+  if(/\bUSD\b/.test(text))return'US';
   return'OTHER';
 }
 
-// ══════════════════════════════════════════════════════════════
-// INDEPENDENT PARSERS PER COUNTRY
-// ══════════════════════════════════════════════════════════════
+function parseHeader(lines){
+  const h={stmtNum:'',date:'',custName:'',custNum:'',period:''};
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i].text;
+    if(!h.stmtNum){
+      const m=ln.match(/Statement\s*Number[:\s]*([A-Z]{2,}\w{5,}|\d{6,})/i);
+      if(m){
+        if(!/^(Statement|Date|Customer)$/i.test(m[1]))h.stmtNum=m[1];
+      }else if(/Statement\s*Number/i.test(ln)){
+        for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+          const look=lines[j].text.trim();
+          const lm=look.match(/\b([A-Z]{2,}\w{5,}|\d{6,})\b/);
+          if(lm){h.stmtNum=lm[1];break}
+        }
+      }
+    }
+    if(!h.date){
+      const m=ln.match(/(?:Statement\s*Date|Date)[:\s]*([\d\/\.\-]+)/i);
+      if(m){
+        h.date=m[1];
+      }else if(/Statement\s*Date/i.test(ln)){
+        for(let j=i+1;j<Math.min(i+3,lines.length);j++){
+          const look=lines[j].text.trim();
+          const lm=look.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
+          if(lm){h.date=lm[1];break}
+        }
+      }
+    }
+    if(!h.custNum){
+      const m=ln.match(/(?:Customer\s*Number|Sold[\s-]*To)[:\s]*([\d]+)/i);
+      if(m){
+        if(!/D\.V\.R\./i.test(ln))h.custNum=m[1];
+      }else if(/Customer\s*Number/i.test(ln)){
+        for(let j=i+1;j<Math.min(i+3,lines.length);j++){
+          const look=lines[j].text.trim();
+          const lm=look.match(/\b(\d{6,})\b/);
+          if(lm){h.custNum=lm[1];break}
+        }
+      }
+    }
+    if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
+  }
+  for(let i=0;i<Math.min(lines.length,15);i++){
+    const ln=lines[i].text.trim();
+    if(/Statement\s*Number\s+Statement\s*Date\s+Customer\s*Number/i.test(ln)&&i+2<lines.length){
+      const vals=lines[i+2].text.trim().match(/\b([A-Z]{2,}\w{5,})\b.*?\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b.*?\b(\d{6,})\b/);
+      if(vals){
+        h.stmtNum=vals[1];
+        if(!h.date)h.date=vals[2];
+        h.custNum=vals[3];
+      }
+      break;
+    }
+  }
+  for(let i=0;i<Math.min(lines.length,30);i++){
+    if(/Sold[\s-]*To/i.test(lines[i].text)){
+      for(let j=i+1;j<Math.min(i+6,lines.length);j++){
+        const cl=lines[j].text.trim();
+        if(cl&&!/^\d+$/.test(cl)&&!/^[A-Z]{2}$/.test(cl)&&cl.length>3&&!/^\d{5,}/.test(cl)&&!/Street|Dr |Ave |Road|Rd /i.test(cl)){h.custName=cl;break}
+      }
+      break;
+    }
+  }
+  if(!h.custName)for(const{text:ln}of lines){const m=ln.match(/Customer\s*Name[:\s]*(.+)/i);if(m){h.custName=m[1].trim();break}}
+  return h;
+}
 
-// ── Shared: Billing Summary ──
 function parseBillingSummary(text){
+  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By)/i.test(text);
   const res=[];let m;
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
@@ -468,11 +342,20 @@ function parseBillingSummary(text){
       res.push({inv:num,charges:ch,tax:tx,total:tot,crf:ehf,rdf:0});
   }
   if(res.length)return res;
-  // Currency symbol patterns: $ ¥ € CHF GBP SEK ₩ INR RM
-  const curSym='(?:\\$|[¥￥]|€|CHF|GBP|SEK|₩|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
+  // Currency symbol patterns: $ JPY/EUR/GBP/CHF/SEK/KRW/INR/RM
+  const curSym='(?:\\$|JPY|EUR|GBP|CHF|SEK|KRW|INR|RM|NZD|MYR|PHP|SGD|THB|AUD|CAD)';
   // 3-col with currency: inv CUR charges CUR tax CUR total
   const p3c=new RegExp('(\\d{7,12})\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)','g');
   while(hasSummaryLabel && (m=p3c.exec(text))!==null){
+    const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
+    if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
+      res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
+  }
+  if(res.length)return res;
+  // 3-col with suffix currency: inv charges CUR tax CUR total CUR
+  const curSymS='(?:\\u20ac|\\u00a3|\\u00e2\\u201a\\u00ac|\\u0432\\u201a\\u00ac|SEK|GBP|EUR|CHF)';
+  const p3cS=new RegExp('(\\d{7,12})\\s+([\\d,]+\\.?\\d*)\\s*'+curSymS+'\\s+([\\d,]+\\.?\\d*)\\s*'+curSymS+'\\s+([\\d,]+\\.?\\d*)\\s*'+curSymS,'g');
+  while(hasSummaryLabel && (m=p3cS.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
@@ -486,16 +369,16 @@ function parseBillingSummary(text){
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
   }
   if(res.length)return res;
-  // JP yen (integer): inv ¥ charges ¥ tax ¥ total
-  const pJP=/(\d{7,12})\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)/g;
+  // JP yen (integer): inv JPY charges JPY tax JPY total
+  const pJP=/(\d{7,12})\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/g;
   while(hasSummaryLabel && (m=pJP.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
       res.push({inv:num,charges:ch,tax:t,total:tl,crf:0,rdf:0});
   }
   if(res.length)return res;
-  // KRW integer (no decimals): inv ₩ charges ₩ tax ₩ total
-  const pKR=/(\d{7,12})\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)\s+₩\s*([\d,]+)/g;
+  // KRW integer (no decimals): inv KRW charges KRW tax KRW total
+  const pKR=/(\d{7,12})\s+KRW\s*([\d,]+)\s+KRW\s*([\d,]+)\s+KRW\s*([\d,]+)/g;
   while(hasSummaryLabel && (m=pKR.exec(text))!==null){
     const[,num,c,tx,tot]=m;const ch=pN(c),t=pN(tx),tl=pN(tot);
     if(!res.find(r=>r.inv===num)&&Math.abs(tl-(ch+t))<tl*.02+10)
@@ -513,63 +396,34 @@ function parseBillingSummary(text){
   return res;
 }
 
-// ── Shared: header extraction ──
-function parseHeader(lines){
-  const h={stmtNum:'',date:'',custName:'',custNum:'',period:''};
-  for(const {text:ln} of lines){
-    if(!h.stmtNum){const m=ln.match(/(?:Statement\s*Number|明細書番号)[:\s]*([A-Z0-9]+)/i);if(m)h.stmtNum=m[1]}
-    if(!h.date){const m=ln.match(/(?:Date|明細書日付)[:\s]*([\d\/\-.]+)/i);if(m)h.date=m[1]}
-    if(!h.custNum){const m=ln.match(/(?:Sold[\s-]*To|Customer\s*Number|お客様番号)[:\s]*([\d]+)/i);if(m)h.custNum=m[1]}
-    if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period|請求対象期間)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
-  }
-  for(let i=0;i<Math.min(lines.length,30);i++){
-    if(/Sold[\s-]*To/i.test(lines[i].text)){
-      for(let j=i+1;j<Math.min(i+6,lines.length);j++){
-        const cl=lines[j].text.trim();
-        if(cl&&!/^\d+$/.test(cl)&&!/^[A-Z]{2}$/.test(cl)&&cl.length>3&&!/^\d{5,}/.test(cl)&&!/Street|Dr |Ave |Road|Rd /i.test(cl)){h.custName=cl;break}
-      }
-      break;
-    }
-  }
-  if(!h.custName)for(const{text:ln}of lines){const m=ln.match(/(?:Customer\s*Name|お客様名)[:\s]*(.+)/i);if(m){h.custName=m[1].trim();break}}
-  return h;
-}
-
-// ── JP Parser ──
+// JP Parser
 function parseItemsJP(lines,fileName){
   const items=[];let curInv='',curTr='';
-  const reFull=/(.+?)\s+([\d,]+)\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)\s+(\d+)\s*%\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)/;
-  const reNums=/^\s*([\d,]+)\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)\s+(\d+)\s*%\s+[¥￥]\s*([\d,]+)\s+[¥￥]\s*([\d,]+)/;
-  const sectRe=/発行ID|請求書番号|製品ID|製品名称|小計|合計/i;
-  const curRe=/[¥￥]\s*[\d,]+/;
-  // General product ID pattern: WBD... or alphanumeric+underscore (e.g. 21RLS50S00_AAS, 78809709_AAS)
+  const reFull=/(.+?)\s+([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+(\d+)\s*%\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/;
+  const reNums=/^\s*([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+(\d+)\s*%\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/;
+  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
+  const curRe=/JPY\s*[\d,]+/;
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
-  // Look-forward: collect continuation lines after product row (suffix of product name)
   function jpFwd(i,max){let s='';for(let j=i+1;j<=Math.min(i+max,lines.length-1);j++){const t=lines[j].text.trim();if(!t||pidRe.test(t)||sectRe.test(t)||curRe.test(t))break;s+=(s?' ':'')+t;}return s;}
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
-    const im=ln.match(/請求書番号[:\s]*([\d]+)/);if(im){curInv=im[1];continue}
-    const tm=ln.match(/発行ID\s+(\S+)/);if(tm){curTr=tm[1];continue}
-    if(/小計|合計/i.test(ln))continue;
-    // Match product ID (WBD or general alphanumeric) + must have ¥ amounts on same line
-    const wm=ln.match(pidRe);if(!wm||!/[¥￥]\s*[\d,]+/.test(ln))continue;
+    const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i);if(im){curInv=im[1];continue}
+    const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
+    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
+    const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
-    // Try full match (product name on same line as WBD code)
     let m=reFull.exec(after);
     if(m){
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
       if(tot>0){
-        // look-back 1 line for prefix (e.g. "Japan With Autopilot VAIO Pro")
         let prefix='';
         if(i>0){const prev=lines[i-1].text.trim();if(prev&&!pidRe.test(prev)&&!sectRe.test(prev)&&!curRe.test(prev))prefix=prev;}
-        // look-forward 1 line for suffix (e.g. "/1TB/11P - Hitachi_Japanese")
         const suffix=jpFwd(i,1);
         const pname=[prefix,m[1].trim(),suffix].filter(Boolean).join(' ');
         items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
         continue;
       }
     }
-    // Fallback: numbers-only → look back up to 2 lines + look-forward up to 2 lines
     m=reNums.exec(after);
     if(m){
       let pname='';
@@ -588,7 +442,6 @@ function parseItemsJP(lines,fileName){
   return items;
 }
 
-// ── US/CA Parser (5-col $: charges, tax, CRF, RDF, total — supports non-WBD product IDs) ──
 function parseItemsUS(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore
@@ -612,7 +465,7 @@ function parseItemsUS(lines,fileName){
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),tax=pN(m[5]),crf=pN(m[6]),tot=pN(m[7]);
       if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,crfRdf:crf,srcFile:fileName,srcPage:page});continue;}
     }
-    // Fallback: numbers-only → look back up to 3 lines + look-forward 1 line for suffix
+    // Fallback: numbers-only 鈫?look back up to 3 lines + look-forward 1 line for suffix
     m=reNums.exec(after);
     if(m){
       let pname='';
@@ -630,7 +483,7 @@ function parseItemsUS(lines,fileName){
   return items;
 }
 
-// ── CH Parser (Switzerland — CHF, decimal qty, 8.10% VAT) ──
+// 鈹€鈹€ CH Parser (Switzerland 鈥?CHF, decimal qty, 8.10% VAT) 鈹€鈹€
 function parseItemsCH(lines,fileName){
   const items=[];let curInv='',curTr='';
   // Full pattern: product name + qty + CHF up + CHF charges + rate% + CHF tax + CHF total
@@ -643,7 +496,7 @@ function parseItemsCH(lines,fileName){
     const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      // CH: "Invoice Number  Invoice Date  Customer Number" → number on next line
+      // CH: "Invoice Number  Invoice Date  Customer Number" 鈫?number on next line
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
@@ -653,8 +506,9 @@ function parseItemsCH(lines,fileName){
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
     let m=reFull.exec(after);
     if(m){
+      const pname=m[1].trim()||inferPname(i)||pid;
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
-      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
     m=reNums.exec(after);
     if(m){
@@ -675,75 +529,111 @@ function parseItemsCH(lines,fileName){
   return items;
 }
 
-// ── EMEA Parser (AT/BE/DE/ES/FR/GB/GR/IE/IT/NL/PT/SE — EUR/GBP/SEK with non-WBD support) ──
+// 鈹€鈹€ EMEA Parser (AT/BE/DE/ES/FR/GB/GR/IE/IT/NL/PT/SE 鈥?EUR/GBP/SEK with non-WBD support) 鈹€鈹€
 function parseItemsEMEA(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore (e.g. 21FBSDGX0L_AAS, 78722528_AAS)
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  // Currency: €, GBP, SEK (flexible)
-  const curRe=/(?:€|GBP|SEK)\s*[\d,]+/;
+  // Currency: EUR/GBP/SEK (prefix/suffix, handle mojibake euro)
+  const curSymS='(?:\\u20ac|\\u00a3|\\u00e2\\u201a\\u00ac|\\u0432\\u201a\\u00ac|SEK|GBP|EUR|CHF)';
+  const curRe=new RegExp('(?:'+curSymS+')\\s*[\\d,]+');
   // Full: pname qty CUR up CUR charges rate% CUR tax CUR total
-  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)/;
+  const reFull=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)');
   // Numbers-only: qty CUR up CUR charges rate% CUR tax CUR total
-  const reNums=/^\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)\s+(?:€|GBP|SEK)\s*([\d,]+\.?\d*)/;
+  const curReS=new RegExp('[\\d,]+\\.?\\d*\\s*'+curSymS);
+  const amtS='(?:'+curSymS+'\\s*)?([\\d,]+\\.?\\d*)\\s*(?:'+curSymS+')?';
+  const reFullS=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+amtS+'\\s+'+amtS+'\\s+([\\d.]+)\\s*%\\s+'+amtS+'\\s+'+amtS);
+  const reNumsS=new RegExp('^\\s*([\\d,]+\\.?\\d*)\\s+'+amtS+'\\s+'+amtS+'\\s+([\\d.]+)\\s*%\\s+'+amtS+'\\s+'+amtS);
+  const reNums=new RegExp('^\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSymS+'\\s*([\\d,]+\\.?\\d*)');
+  function inferPname(idx){
+    let pname='';
+    for(let j=idx-1;j>=Math.max(0,idx-3);j--){
+      const prev=lines[j].text.trim();
+      if(!prev)continue;
+      if(sectRe.test(prev)||curRe.test(prev)||curReS.test(prev))break;
+      if(!/^\s*[\d,.%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
+    }
+    if(idx+1<lines.length){
+      const nxt=lines[idx+1].text.trim();
+      if(nxt&&!pidRe.test(nxt)&&!sectRe.test(nxt)&&!curRe.test(nxt)&&!curReS.test(nxt)&&!/^[A-Za-z]+$/.test(nxt))pname=(pname?pname+' ':'')+nxt;
+    }
+    return pname.trim();
+  }
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     // Invoice Number (or "Rechnungsnummer" for DE)
-    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Numéro\s*de\s*facture|Numero\s*fattura|Factuurnummer|Número\s*de\s*factura|Αριθμός\s*τιμολογίου)[:\s]*(\d{7,12})/i);
+    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Num茅ro\s*de\s*facture|Numero\s*fattura|Factuurnummer|N煤mero\s*de\s*factura|螒蟻喂胃渭蠈蟼\s*蟿喂渭慰位慰纬委慰蠀)[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     // Two-line invoice number
     if(/Invoice\s*Number|Rechnungsnummer/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
+      for(let j=i+1;j<Math.min(i+4,lines.length);j++){
+        const pk=lines[j].text.trim();
+        const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);
+        if(pm){curInv=pm[1];break}
+      }
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
-    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
-    // Match product ID (WBD or general alphanumeric) + must have currency on same line
-    const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
-    const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
-    let m=reFull.exec(after);
-    if(m){
-      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
-      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
-    }
-    m=reNums.exec(after);
-    if(m){
-      let pname='';
+    if(/^Tranche\s*ID$/i.test(ln)){
       for(let j=i-1;j>=Math.max(0,i-3);j--){
         const prev=lines[j].text.trim();
         if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,.€GBPSEKk%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
+        if(/^[A-Z0-9_][A-Z0-9_\-]{8,}$/i.test(prev)){curTr=prev;break}
+        if(/\d/.test(prev)&&!/\s/.test(prev)){curTr=prev;break}
+        if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev)||curReS.test(prev))break;
       }
-      if(i+1<lines.length){const nxt=lines[i+1].text.trim();if(nxt&&!pidRe.test(nxt)&&!sectRe.test(nxt)&&!curRe.test(nxt))pname=(pname?pname+' ':'')+nxt;}
+      continue;
+    }
+    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
+    // Match product ID (WBD or general alphanumeric) + must have currency on same line
+    const wm=ln.match(pidRe);if(!wm||!(curRe.test(ln)||curReS.test(ln)))continue;
+    const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
+    let m=reFull.exec(after);
+    if(m){
+      const pname=m[1].trim()||inferPname(i)||pid;
+      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+    }
+    m=reFullS.exec(after);
+    if(m){
+      const pname=m[1].trim()||inferPname(i)||pid;
+      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+    }
+    m=reNums.exec(after);
+    if(m){
+      const pname=inferPname(i);
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
-      if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+    }
+    m=reNumsS.exec(after);
+    if(m){
+      const pname=inferPname(i);
+      const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     }
   }
   return items;
 }
 
-// ── KR Parser (South Korea — ₩ / $ with Korean labels) ──
+// 鈹€鈹€ KR Parser (South Korea 鈥?鈧?/ $ with Korean labels) 鈹€鈹€
 function parseItemsKR(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
-  const sectRe=/Tranche\s*ID|송장\s*번호|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|소계|합계/i;
-  // KR can use ₩ or $ as currency
-  const curRe=/(?:₩|\$)\s*[\d,]+/;
-  // Full: pname qty CUR up CUR charges rate% CUR tax CUR total
-  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)/;
-  const reNums=/^\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+(?:₩|\$)\s*([\d,]+\.?\d*)\s+(?:₩|\$)\s*([\d,]+\.?\d*)/;
+  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
+  const curRe=/KRW\s*[\d,]+/;
+  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)/;
+  const reNums=/^\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)/;
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
-    // Korean: 송장 번호: 100462509 or Invoice Number: ...
-    const im=ln.match(/(?:송장\s*번호|Invoice\s*Number)[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
-    if(/(?:송장\s*번호|Invoice\s*Number)/i.test(ln)&&!/\d{7,12}/.test(ln)){
+    const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
+    if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
-    if(/소계|합계|sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
+    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
     let m=reFull.exec(after);
@@ -757,7 +647,7 @@ function parseItemsKR(lines,fileName){
       for(let j=i-1;j>=Math.max(0,i-3);j--){
         const prev=lines[j].text.trim();if(!prev)continue;
         if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,₩$%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
+        if(!/^\s*[\d,KRW%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
       }
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
       if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
@@ -766,7 +656,6 @@ function parseItemsKR(lines,fileName){
   return items;
 }
 
-// ── IN Parser (India — INR with IGST/CGST/SGST, HSN/SAC codes) ──
 function parseItemsIN(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
@@ -806,16 +695,16 @@ function parseItemsIN(lines,fileName){
   return items;
 }
 
-// ── Generic Parser (AU/HK/TH/NZ/MY/PH/CA/SG + fallback) ──
+// 鈹€鈹€ Generic Parser (AU/HK/TH/NZ/MY/PH/CA/SG + fallback) 鈹€鈹€
 function parseItemsGen(lines,fileName,knownInvs,country){
   const items=[];let curInv='',curTr='';
-  // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) — only parse ORIGINAL COPY pages
+  // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) 鈥?only parse ORIGINAL COPY pages
   const skipPages=new Set();
   if(country==='TH')for(const{text:ln,page}of lines){if(/CUSTOMER\s+COPY|BILLING\s+COPY/i.test(ln))skipPages.add(page);}
   // General product ID: WBD... or alphanumeric+underscore
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  // Currency patterns — support $, RM, or no symbol
+  // Currency patterns 鈥?support $, RM, or no symbol
   const curSym='(?:\\$|RM)';
   // With $ or RM: pname qty CUR up CUR charges rate% CUR tax CUR total
   const reA=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)');
@@ -831,7 +720,7 @@ function parseItemsGen(lines,fileName,knownInvs,country){
     const{text:ln,page}=lines[i];
     if(skipPages.has(page))continue;
     // Invoice number detection
-    const im=ln.match(/(?:Tax\s+)?Invoice\s*(?:Number|No\.?|番号)\s*:?\s*([\d]{7,12})\b/i);
+    const im=ln.match(/(?:Tax\s+)?Invoice\s*(?:Number|No\.?|鐣彿)\s*:?\s*([\d]{7,12})\b/i);
     if(im){curInv=im[1];continue}
     if(/Invoice\s*(?:Number|No\.?)/i.test(ln)&&!/[\d]{7,12}/.test(ln)){
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([\d]{7,12})\b/);if(pm)curInv=pm[1];}
@@ -870,7 +759,7 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   return items;
 }
 
-// ── Router ──
+// 鈹€鈹€ Router 鈹€鈹€
 function parseItems(country,lines,fileName,knownInvs){
   if(country==='JP')return parseItemsJP(lines,fileName);
   if(country==='US')return parseItemsUS(lines,fileName);
@@ -884,7 +773,7 @@ function parseItems(country,lines,fileName,knownInvs){
   return parseItemsGen(lines,fileName,knownInvs,country);
 }
 
-// ── Full statement parse ──
+// 鈹€鈹€ Full statement parse 鈹€鈹€
 function parseStatement(lines,fileName){
   const fullText=lines.map(l=>l.text).join('\n');
   const country=detectCountry(fullText,fileName);
@@ -900,7 +789,9 @@ function parseStatement(lines,fileName){
   if(!bs.length&&Object.keys(dt).length){
     bsDerived=true;
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
-  }  const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
+  }
+  const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
+  const sT=bs.reduce((a,r)=>{a.charges+=r.charges||0;a.tax+=r.tax||0;a.total+=r.total||0;a.crfRdf+=(r.crf||0)+(r.rdf||0);return a;},{charges:0,tax:0,total:0,crfRdf:0});
   // Comparison + unmapped
   const comp=[],unmS=[],unmD=[];
   const sSet=new Set(bs.map(r=>r.inv)),dSet=new Set(Object.keys(dt));
@@ -925,15 +816,15 @@ function parseStatement(lines,fileName){
   // Grand Total reference = sum of (charges+tax) from billing summary + all CRF/RDF from DET items
   const sTotAdj=sT.charges+sT.tax+dGT.crfRdf;
   const td=Math.abs(sTotAdj-dGT.total);
-  vr.push({nm:'Grand Total — Charges',p:cd<1,sv:cd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.charges,cur)} | Det: ${fc(dGT.charges,cur)} | Δ ${fc(cd,cur)}`});
-  vr.push({nm:'Grand Total — Tax',p:txd<1,sv:txd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.tax,cur)} | Det: ${fc(dGT.tax,cur)} | Δ ${fc(txd,cur)}`});
-  vr.push({nm:'Grand Total — Total',p:td<1,sv:td<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sTotAdj,cur)} | Det: ${fc(dGT.total,cur)} | Δ ${fc(td,cur)}`});
+  vr.push({nm:'Grand Total - Charges',p:cd<1,sv:cd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.charges,cur)} | Det: ${fc(dGT.charges,cur)} | Diff: ${fc(cd,cur)}`});
+  vr.push({nm:'Grand Total - Tax',p:txd<1,sv:txd<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sT.tax,cur)} | Det: ${fc(dGT.tax,cur)} | Diff: ${fc(txd,cur)}`});
+  vr.push({nm:'Grand Total - Total',p:td<1,sv:td<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sTotAdj,cur)} | Det: ${fc(dGT.total,cur)} | Diff: ${fc(td,cur)}`});
   if(unmS.length)vr.push({nm:`Detail pages missing (${unmS.length} invoice${unmS.length>1?'s':''})`,p:false,sv:'f',dt:unmS.join(', ')});
   if(unmD.length)vr.push({nm:`${unmD.length} inv in Detail only`,p:false,sv:'f',dt:unmD.join(', ')});
   for(const r of bs){const c=r.charges+r.tax+(r.crf||0)+(r.rdf||0),d=Math.abs(c-r.total);
-    vr.push({nm:`Inv ${r.inv}: arithmetic`,p:d<1,sv:d<1?'p':'f',dt:`${fc(r.charges,cur)}+${fc(r.tax,cur)}=${fc(c,cur)} vs ${fc(r.total,cur)} Δ${fc(d,cur)}`})}
+    vr.push({nm:`Inv ${r.inv}: arithmetic`,p:d<1,sv:d<1?'p':'f',dt:`${fc(r.charges,cur)} + ${fc(r.tax,cur)} = ${fc(c,cur)} vs ${fc(r.total,cur)} | Diff: ${fc(d,cur)}`})}
   for(const c of comp.filter(x=>x.st==='matched'&&!x.m))
-    vr.push({nm:`Inv ${c.inv}: mismatch`,p:false,sv:'f',dt:`ΔChg=${fc(c.dC_,cur)} ΔTax=${fc(c.dT_,cur)} ΔTot=${fc(c.dTot_,cur)}`});
+    vr.push({nm:`Inv ${c.inv}: mismatch`,p:false,sv:'f',dt:`Diff charges=${fc(c.dC_,cur)} | tax=${fc(c.dT_,cur)} | total=${fc(c.dTot_,cur)}`});
   vr.push({nm:'Line Items',p:li.length>0,sv:li.length>0?'p':'w',dt:li.length?`${li.length} WBD, ${new Set(li.map(l=>l.tranche)).size} tranches`:t('no_items')});
   const nwAll=li.filter(l=>!/^WBD/i.test(l.pid));
   if(nwAll.length){const byInv={};for(const l of nwAll){if(!byInv[l.inv])byInv[l.inv]=[];byInv[l.inv].push(l.pid)}
@@ -943,295 +834,574 @@ function parseStatement(lines,fileName){
   return{fileName,country,cur,hd,bs,li,sT,dt,dGT,comp,unmS,unmD,vr};
 }
 
-// ══════════════════════════════════════════════════════════════
-// FILE MANAGEMENT
-// ══════════════════════════════════════════════════════════════
-const dzEl=document.getElementById('dz'),fInEl=document.getElementById('fIn');
-dzEl.addEventListener('click',()=>fInEl.click());
-dzEl.addEventListener('dragover',e=>{e.preventDefault();dzEl.classList.add('dg')});
-dzEl.addEventListener('dragleave',()=>dzEl.classList.remove('dg'));
-dzEl.addEventListener('drop',e=>{e.preventDefault();dzEl.classList.remove('dg');addFiles(e.dataTransfer.files)});
-fInEl.addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 
-async function addFiles(fl){
-  for(const file of fl){
-    if(!file.name.toLowerCase().endsWith('.pdf'))continue;
-    const id=++eid,entry={id,file,name:file.name,size:file.size,country:null,status:'detecting',lines:null};
-    fileEntries.push(entry);renderFL();
-    try{const lines=await pdfToLines(file);entry.lines=lines;entry.country=detectCountry(lines.slice(0,30).map(l=>l.text).join('\n'),file.name);entry.status='ready'}
-    catch(e){entry.status='error';console.error(file.name,e)}
-    renderFL();updRun();
-  }
-}
-function remFile(id){fileEntries=fileEntries.filter(e=>e.id!==id);renderFL();updRun()}
-function renderFL(){
-  const el=document.getElementById('fList');
-  el.innerHTML=fileEntries.map(e=>{
-    const cm=e.country?CM[e.country]||CM.OTHER:null;
-    let b=e.status==='detecting'?`<span class="lb det">${t('detecting')}</span>`:
-      e.status==='error'?'<span class="lb err">Error</span>':
-      `<span class="lb ok">${cm.flag} ${e.country} ✓</span>`;
-    return`<div class="fi"><span>📄</span><span class="fn" title="${esc(e.name)}">${esc(e.name)}</span><span class="fs">${fmtSz(e.size)}</span>${b}<button class="rb" onclick="remFile(${e.id})">×</button></div>`;
-  }).join('');
-  document.getElementById('aBar').style.display=fileEntries.length?'flex':'none';
-}
-function updRun(){const r=fileEntries.filter(e=>e.status==='ready').length;const b=document.getElementById('runBtn');b.disabled=r===0;b.textContent=r?`▶ ${t('run_btn').replace('▶ ','')} (${r})`:'▶ '+t('run_btn').replace('▶ ','')}
-function clearAll(){fileEntries=[];analysisResults=null;renderFL();updRun();document.getElementById('gSum').style.display='none';document.getElementById('results').innerHTML='';document.getElementById('exBtn').style.display='none'}
+const dzEl = document.getElementById('dz');
+const fInEl = document.getElementById('fIn');
+const fileListEl = document.getElementById('fList');
+const actionBarEl = document.getElementById('aBar');
+const runBtnEl = document.getElementById('runBtn');
+const exportBtnEl = document.getElementById('exBtn');
+const progressWrapEl = document.getElementById('pw');
+const progressBarEl = document.getElementById('pbar');
+const progressLabelEl = document.getElementById('plab');
+const summaryWrapEl = document.getElementById('gSum');
+const cardsEl = document.getElementById('gCards');
+const resultsEl = document.getElementById('results');
 
-// ══════════════════════════════════════════════════════════════
-// RUN
-// ══════════════════════════════════════════════════════════════
-function setProg(p,m){document.getElementById('pw').style.display='block';document.getElementById('pbar').style.width=p+'%';document.getElementById('plab').textContent=m}
+dzEl.addEventListener('click', () => fInEl.click());
+dzEl.addEventListener('dragover', e => {
+  e.preventDefault();
+  dzEl.classList.add('dg');
+});
+dzEl.addEventListener('dragleave', () => dzEl.classList.remove('dg'));
+dzEl.addEventListener('drop', e => {
+  e.preventDefault();
+  dzEl.classList.remove('dg');
+  addFiles(e.dataTransfer.files);
+});
+fInEl.addEventListener('change', e => {
+  addFiles(e.target.files);
+  e.target.value = '';
+});
 
-async function runAll(){
-  document.getElementById('runBtn').disabled=true;document.getElementById('results').innerHTML='';
-  document.getElementById('gSum').style.display='none';document.getElementById('exBtn').style.display='none';
-  analysisResults={};
-  const ready=fileEntries.filter(e=>e.status==='ready'),tot=ready.length;let done=0;
-  setProg(2,t('starting'));
-  for(const entry of ready){
-    setProg(Math.round(done/tot*90)+5,`${t('parsing')} ${entry.name}`);
-    try{const lines=entry.lines||await pdfToLines(entry.file);const st=parseStatement(lines,entry.name);
-      const k=st.country;if(!analysisResults[k])analysisResults[k]={country:k,meta:CM[k]||CM.OTHER,stmts:[]};
-      analysisResults[k].stmts.push(st)}
-    catch(e){console.error(entry.name,e)}
-    done++;
-  }
-  setProg(95,t('rendering'));renderResults();
-  setProg(100,`${t('done')} — ${tot} file(s)`);
-  document.getElementById('runBtn').disabled=false;document.getElementById('exBtn').style.display='inline-flex';
-  setTimeout(()=>{document.getElementById('pw').style.display='none'},2000);
+function setProg(percent, label) {
+  progressWrapEl.style.display = 'block';
+  progressBarEl.style.width = `${percent}%`;
+  progressLabelEl.textContent = label;
 }
 
-// ══════════════════════════════════════════════════════════════
-// HIERARCHY TREE
-// ══════════════════════════════════════════════════════════════
-function buildTree(){
-  const tree={};
-  for(const[code,g]of Object.entries(analysisResults)){
-    if(!tree[code])tree[code]={meta:g.meta,st:{items:0,ch:0,tx:0,tot:0,err:0},ch:{}};
-    for(const s of g.stmts)for(const li of s.li){
-      const cust=s.hd.custName||s.hd.custNum||'—';
-      const per=s.hd.period||'—';
-      const tr=li.tranche||'—';
-      const cn=tree[code];
-      if(!cn.ch[cust])cn.ch[cust]={st:{items:0,ch:0,tx:0,tot:0,err:0},ch:{}};
-      const sn=cn.ch[cust];
-      if(!sn.ch[per])sn.ch[per]={st:{items:0,ch:0,tx:0,tot:0,err:0},ch:{}};
-      const pn=sn.ch[per];
-      if(!pn.ch[tr])pn.ch[tr]={st:{items:0,ch:0,tx:0,tot:0,err:0},items:[]};
-      const tn=pn.ch[tr];
-      tn.items.push(li);
-      [tn.st,pn.st,sn.st,cn.st].forEach(x=>{x.items++;x.ch+=li.charges;x.tx+=li.tax;x.tot+=li.total});
+async function addFiles(fileList) {
+  for (const file of fileList) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) continue;
+    const id = ++eid;
+    const entry = {
+      id,
+      file,
+      name: file.name,
+      size: file.size,
+      country: null,
+      status: 'detecting',
+      lines: null,
+      error: '',
+    };
+    fileEntries.push(entry);
+    renderFileList();
+    try {
+      const lines = await pdfToLines(file);
+      entry.lines = lines;
+      entry.country = detectCountry(
+        lines.slice(0, 40).map(line => line.text).join('\n'),
+        file.name
+      );
+      entry.status = 'ready';
+    } catch (err) {
+      entry.status = 'error';
+      entry.error = err && err.message ? err.message : String(err);
+      console.error(file.name, err);
     }
+    renderFileList();
+    updateRunButton();
   }
-  return tree;
 }
 
-function renderHierarchy(){
-  const tree=buildTree();let uid=0;const rows=[];
-  const hf=(v,c)=>c==='JPY'?'¥'+Math.round(v).toLocaleString():'$'+v.toFixed(2);
-  for(const[code,cn]of Object.entries(tree)){
-    const c=(CM[code]||CM.OTHER).cur,cid='h'+(++uid);
-    rows.push(hRow(cid,'',0,`${cn.meta.flag} ${cn.meta.label} (${code})`,cn.st,c,true));
-    for(const[cust,sn]of Object.entries(cn.ch)){
-      const sid='h'+(++uid);rows.push(hRow(sid,cid,1,cust,sn.st,c,true));
-      for(const[per,pn]of Object.entries(sn.ch)){
-        const pid='h'+(++uid);rows.push(hRow(pid,sid,2,per,pn.st,c,false));
-        for(const[tr,tn]of Object.entries(pn.ch)){
-          const tid='h'+(++uid);rows.push(hRow(tid,pid,3,tr,tn.st,c,false));
-          for(const li of tn.items){
-            const src=li.srcFile?`<span class="src" title="${esc(li.srcFile)}">${esc(li.srcFile)} p.${li.srcPage}</span>`:'';
-            rows.push(`<tr class="hl4" data-p="${tid}" style="display:none"><td>${esc(li.pid)} ${esc(li.pname)}${src}</td><td class="tr">${li.qty}</td><td class="tr">${hf(li.charges,c)}</td><td class="tr">${hf(li.tax,c)}</td><td class="tr">${hf(li.total,c)}</td><td></td></tr>`);
-          }
-        }
+function removeFile(id) {
+  fileEntries = fileEntries.filter(entry => entry.id !== id);
+  renderFileList();
+  updateRunButton();
+}
+
+function clearAll() {
+  fileEntries = [];
+  analysisResults = null;
+  fileListEl.innerHTML = '';
+  resultsEl.innerHTML = '';
+  cardsEl.innerHTML = '';
+  summaryWrapEl.style.display = 'none';
+  actionBarEl.style.display = 'none';
+  exportBtnEl.style.display = 'none';
+  updateRunButton();
+}
+
+function renderFileList() {
+  fileListEl.innerHTML = fileEntries.map(entry => {
+    const meta = entry.country ? (CM[entry.country] || CM.OTHER) : null;
+    const badge = entry.status === 'detecting'
+      ? `<span class="lb det">${t('detecting')}</span>`
+      : entry.status === 'error'
+        ? `<span class="lb err">${t('error')}</span>`
+        : `<span class="lb ok">${esc(meta.flag)} ${esc(entry.country)}</span>`;
+    return `
+      <div class="fi">
+        <span class="fi-type">PDF</span>
+        <span class="fn" title="${esc(entry.name)}">${esc(entry.name)}</span>
+        <span class="fs">${fmtSz(entry.size)}</span>
+        ${badge}
+        <button class="rb" onclick="removeFile(${entry.id})" title="Remove">x</button>
+      </div>
+    `;
+  }).join('');
+  actionBarEl.style.display = fileEntries.length ? 'flex' : 'none';
+}
+
+function updateRunButton() {
+  const readyCount = fileEntries.filter(entry => entry.status === 'ready').length;
+  runBtnEl.disabled = readyCount === 0;
+  runBtnEl.textContent = readyCount
+    ? `${t('run_btn')} (${readyCount})`
+    : t('run_btn');
+}
+
+async function runAll() {
+  const ready = fileEntries.filter(entry => entry.status === 'ready');
+  if (!ready.length) return;
+
+  runBtnEl.disabled = true;
+  exportBtnEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+  cardsEl.innerHTML = '';
+  summaryWrapEl.style.display = 'none';
+  analysisResults = {};
+
+  setProg(2, t('starting'));
+
+  for (let index = 0; index < ready.length; index++) {
+    const entry = ready[index];
+    setProg(
+      Math.round((index / ready.length) * 80) + 10,
+      `${t('parsing')} ${entry.name}`
+    );
+    try {
+      const lines = entry.lines || await pdfToLines(entry.file);
+      const statement = parseStatement(lines, entry.name);
+      const key = statement.country;
+      if (!analysisResults[key]) {
+        analysisResults[key] = {
+          country: key,
+          meta: CM[key] || CM.OTHER,
+          stmts: [],
+        };
       }
+      analysisResults[key].stmts.push(statement);
+    } catch (err) {
+      console.error(entry.name, err);
     }
   }
-  return`<div class="tb"><div>${t('hierarchy')}: Country → Customer → Period → Tranche</div><button class="btn btn-s" onclick="doExport()">${t('export_btn')}</button></div>
-    <div class="hw"><table class="ht"><thead><tr><th>${t('hierarchy')}</th><th class="tr">${t('items')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th><th class="tr">${t('total')}</th><th class="tr">${t('issues')}</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+
+  setProg(94, t('rendering'));
+  renderResults();
+  setProg(100, t('done'));
+  runBtnEl.disabled = false;
+  exportBtnEl.style.display = 'inline-flex';
+  setTimeout(() => {
+    progressWrapEl.style.display = 'none';
+  }, 1200);
 }
 
-function hRow(id,pid,lv,label,st,c,open){
-  const hf=(v)=>c==='JPY'?'¥'+Math.round(v).toLocaleString():'$'+v.toFixed(2);
-  const tog=lv<3?`<button class="htg" onclick="togH('${id}')">${open?'▼':'▶'}</button>`:'<span style="display:inline-block;width:20px"></span>';
-  const labels=['','Customer: ','Period: ','Tranche: '];
-  const ds=(pid&&!open)?' style="display:none"':'';
-  return`<tr class="hl${lv}" data-hid="${id}" data-p="${pid}" data-e="${open?1:0}"${ds}>
-    <td>${tog}<span style="font-size:10px;color:var(--text-muted)">${labels[lv]}</span><strong>${esc(label)}</strong></td>
-    <td class="tr">${st.items}</td><td class="tr">${hf(st.ch)}</td><td class="tr">${hf(st.tx)}</td><td class="tr">${hf(st.tot)}</td><td></td></tr>`;
-}
+function renderResults() {
+  if (!analysisResults) return;
+  const countries = Object.keys(analysisResults).sort();
+  if (!countries.length) {
+    resultsEl.innerHTML = '<div class="ib w">No parsed statements.</div>';
+    return;
+  }
 
-function togH(id){
-  const row=document.querySelector(`tr[data-hid="${id}"]`);if(!row)return;
-  const open=row.dataset.e==='1';row.dataset.e=open?'0':'1';
-  const btn=row.querySelector('.htg');if(btn)btn.textContent=open?'▶':'▼';
-  if(open)hideDesc(id);else document.querySelectorAll(`tr[data-p="${id}"]`).forEach(c=>{c.style.display=''});
-}
-function hideDesc(id){document.querySelectorAll(`tr[data-p="${id}"]`).forEach(c=>{c.style.display='none';if(c.dataset.hid)hideDesc(c.dataset.hid)})}
-
-// ══════════════════════════════════════════════════════════════
-// RENDER
-// ══════════════════════════════════════════════════════════════
-function renderResults(){
-  if(!analysisResults)return;
-  const codes=Object.keys(analysisResults).sort();
-  // Group cards
-  document.getElementById('gCards').innerHTML=codes.map((code,i)=>{
-    const g=analysisResults[code],m=g.meta;
-    const invs=g.stmts.reduce((s,st)=>s+st.bs.length,0);
-    const items=g.stmts.reduce((s,st)=>s+st.li.length,0);
-    const fails=g.stmts.reduce((s,st)=>s+st.vr.filter(v=>v.sv==='f').length,0);
-    const unm=g.stmts.reduce((s,st)=>s+st.unmS.length+st.unmD.length,0);
-    return`<div class="gc${i===0?' a':''}" id="gc-${code}" onclick="swC('${code}')">
-      <div class="gc-f">${m.flag}</div><div class="gc-n">${m.label} (${code})</div>
-      <div class="gc-r"><span>${t('stmts')}</span><span class="gc-v">${g.stmts.length}</span></div>
-      <div class="gc-r"><span>${t('invoices')}</span><span class="gc-v">${invs}</span></div>
-      <div class="gc-r"><span>${t('items')}</span><span class="gc-v">${items}</span></div>
-      <div class="gc-r"><span>${t('unmapped')}</span><span class="gc-v ${unm?'er':'ok'}">${unm}</span></div>
-      <div class="gc-r"><span>${t('issues')}</span><span class="gc-v ${fails?'er':'ok'}">${fails}</span></div></div>`;
+  cardsEl.innerHTML = countries.map((code, index) => {
+    const group = analysisResults[code];
+    const invCount = group.stmts.reduce((sum, stmt) => sum + stmt.bs.length, 0);
+    const itemCount = group.stmts.reduce((sum, stmt) => sum + stmt.li.length, 0);
+    const issueCount = group.stmts.reduce(
+      (sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length,
+      0
+    );
+    const unmappedCount = group.stmts.reduce(
+      (sum, stmt) => sum + stmt.unmS.length + stmt.unmD.length,
+      0
+    );
+    return `
+      <div class="gc ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="swC('${esc(code)}')">
+        <div class="gc-f">${esc(group.meta.flag)}</div>
+        <div class="gc-n">${esc(group.meta.label)} (${esc(code)})</div>
+        <div class="gc-r"><span>${t('stmts')}</span><span class="gc-v">${group.stmts.length}</span></div>
+        <div class="gc-r"><span>${t('invoices')}</span><span class="gc-v">${invCount}</span></div>
+        <div class="gc-r"><span>${t('items')}</span><span class="gc-v">${itemCount}</span></div>
+        <div class="gc-r"><span>${t('unmapped')}</span><span class="gc-v ${unmappedCount ? 'er' : 'ok'}">${unmappedCount}</span></div>
+        <div class="gc-r"><span>${t('issues')}</span><span class="gc-v ${issueCount ? 'er' : 'ok'}">${issueCount}</span></div>
+      </div>
+    `;
   }).join('');
-  document.getElementById('gSum').style.display='block';
 
-  // Tabs: Hierarchy + per-country
-  let h='<div class="tabs"><button class="tab a" id="tab-hier" onclick="swTab(\'hier\')">'+'🌳 '+t('hierarchy')+'</button>';
-  codes.forEach(code=>{h+=`<button class="tab" id="tab-${code}" onclick="swTab('${code}');swC('${code}')">${analysisResults[code].meta.flag} ${code}</button>`});
-  h+='</div>';
-  h+=`<div class="tp a" id="tp-hier">${renderHierarchy()}</div>`;
-  codes.forEach(code=>{h+=`<div class="tp" id="tp-${code}">${renderCountry(code)}</div>`});
-  document.getElementById('results').innerHTML=h;
-}
-
-function swC(code){document.querySelectorAll('.gc').forEach(c=>c.classList.remove('a'));document.getElementById('gc-'+code)?.classList.add('a')}
-function swTab(id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('a'));document.getElementById('tab-'+id)?.classList.add('a');
-  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.getElementById('tp-'+id)?.classList.add('a')}
-
-function renderCountry(code){
-  const stmts=analysisResults[code].stmts;
-  const byCust={};for(const s of stmts){const k=s.hd.custName||s.hd.custNum||'Unknown';if(!byCust[k])byCust[k]=[];byCust[k].push(s)}
-  const custs=Object.keys(byCust),sid=`sc-${code}`;
-  let h=`<div class="stabs">${custs.map((c,i)=>{const sh=c.length>28?c.substring(0,26)+'…':c;
-    return`<button class="st${i===0?' a':''}" id="${sid}-${i}" onclick="swSub('${code}',${i},${custs.length})" title="${esc(c)}">${esc(sh)} (${byCust[c].length})</button>`}).join('')}</div>`;
-  custs.forEach((c,i)=>{h+=`<div class="sp${i===0?' a':''}" id="${sid}-p-${i}">${renderCustStmts(byCust[c],code)}</div>`});
-  return h;
-}
-
-function swSub(code,i,n){for(let j=0;j<n;j++){document.getElementById(`sc-${code}-${j}`)?.classList.toggle('a',j===i);document.getElementById(`sc-${code}-p-${j}`)?.classList.toggle('a',j===i)}}
-
-function renderCustStmts(stmts){
-  let h='';
-  for(const s of stmts){
-    const C=s.cur,fails=s.vr.filter(v=>v.sv==='f').length,hasUnm=s.unmS.length+s.unmD.length;
-    const sid=('d_'+s.hd.stmtNum).replace(/\W/g,'');
-
-    h+=`<div class="tb"><div>
-      <strong>${esc(s.hd.stmtNum)}</strong> · ${esc(s.hd.custName)} · ${s.hd.date} · ${esc(s.hd.period)} ·
-      ${s.bs.length} ${t('invoices')} · ${s.li.length} ${t('items')} ·
-      ${fails?`<span class="tre">${fails} ${t('issues')}</span>`:`<span class="tg">${t('ok')}</span>`}
-      ${hasUnm?` · <span class="to">${hasUnm} ${t('unmapped')}</span>`:''}
-    </div></div>`;
-
-    // Comparison table
-    h+=`<div class="tw"><table><thead><tr>
-      <th>${t('invoice')}</th><th>${t('status')}</th>
-      <th class="tr">Sum ${t('charges')}</th><th class="tr">Det ${t('charges')}</th><th class="tr">Δ</th>
-      <th class="tr">Sum ${t('tax')}</th><th class="tr">Det ${t('tax')}</th><th class="tr">Δ</th>
-      <th class="tr">Sum ${t('total')}</th><th class="tr">Det ${t('total')}</th><th class="tr">Δ</th>
-      <th class="tr">#</th><th>${t('match')}</th></tr></thead><tbody>`;
-    for(const c of s.comp){
-      const cls=c.st!=='matched'?'ro':(!c.m?'re':'');
-      const lbl=c.st==='matched'?`<span class="tg">${t('matched')}</span>`:c.st==='summary_only'?`<span class="to">${t('sum_only')}</span>`:`<span class="to">${t('det_only')}</span>`;
-      const fD=(v,ok)=>c.st!=='matched'?`<span class="to">${fc(v,C)}</span>`:`<span class="${ok?'tg':'tre'}">${fc(v,C)}</span>`;
-      h+=`<tr class="${cls}"><td class="mono">${c.inv}</td><td>${lbl}</td>`;
-      h+=`<td class="mono tr">${c.sC?fc(c.sC,C):'—'}</td><td class="mono tr">${c.dC||c.n?fc(c.dC,C):'—'}</td><td class="mono tr">${fD(c.dC_,c.mC)}</td>`;
-      h+=`<td class="mono tr">${c.sT||c.st==='matched'?fc(c.sT,C):'—'}</td><td class="mono tr">${c.dT||c.n?fc(c.dT,C):'—'}</td><td class="mono tr">${fD(c.dT_,c.mT)}</td>`;
-      h+=`<td class="mono tr">${c.sTot?fc(c.sTot,C):'—'}</td><td class="mono tr">${c.dTot||c.n?fc(c.dTot,C):'—'}</td><td class="mono tr">${fD(c.dTot_,c.mTot)}</td>`;
-      h+=`<td class="mono tr">${c.n}${c.nw?` <span class="to" title="${c.nw} non-WBD">(${c.nw}⚠)</span>`:''}</td><td>${c.m?'<span class="tg">✓</span>':'<span class="tre">✗</span>'}</td></tr>`;
-    }
-    // Grand total
-    const gc=Math.abs(s.sT.charges-s.dGT.charges),gt=Math.abs(s.sT.tax-s.dGT.tax);
-    const sTotAdj=s.sT.charges+s.sT.tax+(s.dGT.crfRdf||0);
-    const gtt=Math.abs(sTotAdj-s.dGT.total);
-    h+=`<tr class="rs"><td>${t('grand_total')}</td><td></td>`;
-    h+=`<td class="mono tr">${fc(s.sT.charges,C)}</td><td class="mono tr">${fc(s.dGT.charges,C)}</td><td class="mono tr ${gc>.99?'tre':'tg'}">${fc(gc,C)}</td>`;
-    h+=`<td class="mono tr">${fc(s.sT.tax,C)}</td><td class="mono tr">${fc(s.dGT.tax,C)}</td><td class="mono tr ${gt>.99?'tre':'tg'}">${fc(gt,C)}</td>`;
-    h+=`<td class="mono tr">${fc(sTotAdj,C)}</td><td class="mono tr">${fc(s.dGT.total,C)}</td><td class="mono tr ${gtt>.99?'tre':'tg'}">${fc(gtt,C)}</td>`;
-    h+=`<td class="mono tr">${s.li.length}</td><td></td></tr></tbody></table></div>`;
-
-    // Unmapped alerts
-    if(s.unmS.length)h+=`<div class="ib w">⚠ <div><strong>${s.unmS.length} ${t('sum_only')}:</strong> <span class="mono">${s.unmS.join(', ')}</span></div></div>`;
-    if(s.unmD.length)h+=`<div class="ib w">⚠ <div><strong>${s.unmD.length} ${t('det_only')}:</strong> <span class="mono">${s.unmD.join(', ')}</span></div></div>`;
-
-    // Collapsible: Billing Summary
-    const hasFee=s.bs.some(r=>r.crf||r.rdf);
-    h+=`<details style="margin:0 12px"><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">📋 ${t('billing_sum')} (${s.bs.length})</summary>
-      <div style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:auto;max-height:380px"><table>
-      <thead><tr><th>${t('invoice')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th>${hasFee?'<th class="tr">CRF</th><th class="tr">RDF</th>':''}<th class="tr">${t('total')}</th><th>✓</th></tr></thead><tbody>`;
-    for(const r of s.bs){const calc=r.charges+r.tax+(r.crf||0)+(r.rdf||0),d=Math.abs(calc-r.total),ok=d<1;
-      h+=`<tr class="${ok?'':'re'}"><td class="mono">${r.inv}</td><td class="mono tr">${fc(r.charges,C)}</td><td class="mono tr">${fc(r.tax,C)}</td>`;
-      if(hasFee)h+=`<td class="mono tr">${fc(r.crf||0,C)}</td><td class="mono tr">${fc(r.rdf||0,C)}</td>`;
-      h+=`<td class="mono tr">${fc(r.total,C)}</td><td>${ok?'<span class="tg">✓</span>':'<span class="tre">✗</span>'}</td></tr>`}
-    h+=`</tbody></table></div></details>`;
-
-    // Collapsible: Detail
-    h+=`<details style="margin:0 12px"><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">📦 ${t('detail_items')} (${s.li.length})</summary>`;
-    const invNums=[...new Set(s.li.map(l=>l.inv))];
-    h+=`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${invNums.map((n,i)=>`<button class="btn btn-s${i===0?' a':''}" onclick="fD('${sid}','${n}',this)">${n}</button>`).join('')}<button class="btn btn-s" onclick="fD('${sid}','ALL',this)">All</button></div>`;
-    const hasCrf=s.li.some(l=>l.crfRdf);
-    h+=`<div style="max-height:360px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:auto" id="${sid}"><table>
-      <thead><tr><th>${t('invoice')}</th><th>${t('tranche')}</th><th>${t('product')}</th><th>${t('name')}</th><th class="tr">${t('qty')}</th><th class="tr">${t('unit_price')}</th><th class="tr">${t('charges')}</th><th class="tr">${t('tax')}</th>${hasCrf?'<th class="tr">CRF/RDF</th>':''}<th class="tr">${t('total')}</th><th>${t('file')}</th><th>${t('page')}</th></tr></thead><tbody>`;
-    for(const li of s.li){
-      const isNonWbd=!/^WBD/i.test(li.pid);
-      h+=`<tr data-inv="${li.inv}"${isNonWbd?' class="re" title="Non-WBD product ID"':''}><td class="mono">${li.inv}</td><td class="mono" style="font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${esc(li.tranche)}">${li.tranche}</td><td class="mono"${isNonWbd?' style="color:var(--accent);font-weight:700"':''}>${li.pid}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(li.pname)}">${esc(li.pname)}</td><td class="mono tr">${li.qty}</td><td class="mono tr">${fc(li.up,C)}</td><td class="mono tr">${fc(li.charges,C)}</td><td class="mono tr">${fc(li.tax,C)}</td>${hasCrf?'<td class="mono tr">'+fc(li.crfRdf||0,C)+'</td>':''}<td class="mono tr">${fc(li.total,C)}</td><td class="td" style="font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${esc(li.srcFile)}">${esc(li.srcFile)}</td><td class="mono td">${li.srcPage}</td></tr>`;
-    }
-    h+='</tbody></table></div></details>';
-
-    // Collapsible: Validation
-    h+=`<details style="margin:0 12px"${fails?' open':''}><summary style="cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;color:var(--text-dim)">✅ ${t('validation')} (${s.vr.length} ${t('checks')}, ${fails} ${t('issues')})</summary><div style="padding-bottom:14px">`;
-    for(const v of s.vr){
-      const icon=v.sv==='p'?'✓':v.sv==='f'?'✗':'⚠';
-      const cc=v.sv==='p'?'p':v.sv==='f'?'f':'w';
-      h+=`<div class="vi"><span class="vc ${cc}">${icon}</span><div><div style="font-size:12px;font-weight:600">${esc(v.nm)}</div><div style="font-size:10px;color:var(--text-dim)">${esc(v.dt)}</div></div></div>`;
-    }
-    h+='</div></details><div style="height:20px"></div>';
+  summaryWrapEl.style.display = 'block';
+  let html = `<div class="tabs"><button class="tab a" id="tab-hier" onclick="swTab('hier')">${t('hierarchy')}</button>`;
+  for (const code of countries) {
+    html += `<button class="tab" id="tab-${esc(code)}" onclick="swTab('${esc(code)}');swC('${esc(code)}')">${esc(analysisResults[code].meta.flag)} ${esc(code)}</button>`;
   }
-  return h;
+  html += `</div>`;
+  html += `<div class="tp a" id="tp-hier">${renderHierarchy()}</div>`;
+  for (const code of countries) {
+    html += `<div class="tp" id="tp-${esc(code)}">${renderCountrySection(code)}</div>`;
+  }
+  resultsEl.innerHTML = html;
 }
 
-function fD(sid,inv,btn){const w=document.getElementById(sid);if(!w)return;btn.parentElement.querySelectorAll('.btn').forEach(b=>b.classList.remove('a'));btn.classList.add('a');
-  w.querySelectorAll('tbody tr').forEach(r=>r.style.display=(inv==='ALL'||r.dataset.inv===inv)?'':'none')}
-
-// ══════════════════════════════════════════════════════════════
-// EXCEL EXPORT
-// ══════════════════════════════════════════════════════════════
-function doExport(){
-  if(!analysisResults)return;
-  const wb=XLSX.utils.book_new(),all=Object.values(analysisResults).flatMap(g=>g.stmts);
-  const s1=[[t('file'),'Country','Currency','Statement','Customer','Date',t('invoice'),t('status'),'Sum '+t('charges'),'Det '+t('charges'),'Δ '+t('charges'),t('charges')+' '+t('match'),'Sum '+t('tax'),'Det '+t('tax'),'Δ '+t('tax'),t('tax')+' '+t('match'),'Sum '+t('total'),'Det '+t('total'),'Δ '+t('total'),t('total')+' '+t('match'),'All '+t('match'),'#']];
-  for(const s of all)for(const c of s.comp)s1.push([s.fileName,s.country,s.cur,s.hd.stmtNum,s.hd.custName,s.hd.date,c.inv,c.st,c.sC,c.dC,c.dC_,c.mC?'YES':'NO',c.sT,c.dT,c.dT_,c.mT?'YES':'NO',c.sTot,c.dTot,c.dTot_,c.mTot?'YES':'NO',c.m?'YES':'NO',c.n]);
-  addSh(wb,s1,'Comparison');
-  const s2=[[t('file'),'Country','Statement','Customer',t('invoice'),'Direction',t('charges'),t('tax'),t('total')]];
-  for(const s of all){for(const inv of s.unmS){const r=s.bs.find(x=>x.inv===inv);s2.push([s.fileName,s.country,s.hd.stmtNum,s.hd.custName,inv,'Summary Only',r?.charges||0,r?.tax||0,r?.total||0])}
-    for(const inv of s.unmD){const d=s.dt[inv];s2.push([s.fileName,s.country,s.hd.stmtNum,s.hd.custName,inv,'Detail Only',d?.charges||0,d?.tax||0,d?.total||0])}}
-  addSh(wb,s2,'Unmapped');
-  const s3=[[t('file'),'Country','Currency','Statement','Customer',t('invoice'),t('tranche'),t('product'),t('name'),t('qty'),t('unit_price'),t('charges'),t('tax'),'CRF/RDF',t('total'),'Src File','Src Page']];
-  for(const s of all)for(const li of s.li)s3.push([s.fileName,s.country,s.cur,s.hd.stmtNum,s.hd.custName,li.inv,li.tranche,li.pid,li.pname,li.qty,li.up,li.charges,li.tax,li.crfRdf||0,li.total,li.srcFile,li.srcPage]);
-  addSh(wb,s3,'Detail');
-  const s4=[[t('file'),'Country','Statement','Customer','Check',t('pass'),'Severity','Details']];
-  for(const s of all)for(const v of s.vr)s4.push([s.fileName,s.country,s.hd.stmtNum,s.hd.custName,v.nm,v.p?'PASS':'FAIL',v.sv==='p'?'PASS':v.sv==='f'?'FAIL':'WARN',v.dt]);
-  addSh(wb,s4,'Validation');
-  // Build filename: {stmtNum}_{lang}_Invoice_Validator_Export_{YYYYMMDD}.xlsx
-  const _date=new Date().toISOString().slice(0,10).replace(/-/g,'');
-  const _stmt=all.length>0?(all[0].hd.stmtNum||''):'';
-  let _lang='';
-  if(all.length>0){const _fn=all[0].fileName||'';const _lm=_fn.match(/_([A-Z]{2})(?:\.[^.]+)?$/i);if(_lm)_lang=_lm[1].toUpperCase();}
-  const _parts=[_stmt,_lang,'Invoice_Validator_Export',_date].filter(Boolean);
-  XLSX.writeFile(wb,_parts.join('_')+'.xlsx');
+function renderCountrySection(code) {
+  const group = analysisResults[code];
+  const byCustomer = {};
+  for (const stmt of group.stmts) {
+    const key = stmt.hd.custName || stmt.hd.custNum || 'Unknown';
+    if (!byCustomer[key]) byCustomer[key] = [];
+    byCustomer[key].push(stmt);
+  }
+  const customers = Object.keys(byCustomer);
+  const subId = `sc-${code}`;
+  return `
+    <section class="country-section">
+      <div class="tb">
+        <div>
+          <strong>${esc(group.meta.flag)} ${esc(group.meta.label)} (${esc(code)})</strong>
+        </div>
+        <div>${group.stmts.length} ${t('stmts')}</div>
+      </div>
+      <div class="stabs">
+        ${customers.map((customer, index) => {
+          const short = customer.length > 28 ? `${customer.slice(0, 26)}...` : customer;
+          return `<button class="st ${index === 0 ? 'a' : ''}" id="${subId}-${index}" onclick="swSub('${esc(code)}',${index},${customers.length})" title="${esc(customer)}">${esc(short)} (${byCustomer[customer].length})</button>`;
+        }).join('')}
+      </div>
+      ${customers.map((customer, index) => {
+        return `<div class="sp ${index === 0 ? 'a' : ''}" id="${subId}-p-${index}">${byCustomer[customer].map(stmt => renderStatement(stmt)).join('')}</div>`;
+      }).join('')}
+    </section>
+  `;
 }
-function addSh(wb,data,name){const ws=XLSX.utils.aoa_to_sheet(data),cols=[];
-  for(let c=0;c<data[0].length;c++){let mx=10;for(let r=0;r<Math.min(data.length,80);r++){const v=data[r][c];const l=v!=null?String(v).length:0;if(l>mx)mx=l}cols.push({wch:Math.min(mx+2,42)})}
-  ws['!cols']=cols;if(data.length>1)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:data.length-1,c:data[0].length-1}})};
-  XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31))}
-</script>
+
+function renderStatement(stmt) {
+  const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
+  const customer = stmt.hd.custName || stmt.hd.custNum || 'Unknown';
+  const period = stmt.hd.period || 'Unknown';
+  const unmappedCount = stmt.unmS.length + stmt.unmD.length;
+  const safeId = (`d_${stmt.hd.stmtNum || stmt.fileName}`).replace(/\W/g, '');
+  return `
+    <article class="statement-card">
+      <div class="tb">
+        <div>
+          <strong>${esc(stmt.hd.stmtNum || stmt.fileName)}</strong>
+          <span class="tb-meta">${esc(customer)}</span>
+          <span class="tb-meta">${esc(period)}</span>
+          <span class="tb-meta">${esc(stmt.hd.date || '')}</span>
+          <span class="tb-meta">${stmt.bs.length} ${t('invoices')}</span>
+          <span class="tb-meta">${stmt.li.length} ${t('items')}</span>
+        </div>
+        <div class="${issueCount ? 'tre' : 'tg'}">${issueCount} ${t('issues')}</div>
+      </div>
+      ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
+      ${renderComparisonTable(stmt)}
+      ${renderSummaryTable(stmt)}
+      ${renderDetailTable(stmt, safeId)}
+      ${renderValidationList(stmt)}
+    </article>
+  `;
+}
+
+function renderComparisonTable(stmt) {
+  const rows = stmt.comp.map(row => `
+    <tr class="${row.st !== 'matched' ? 'ro' : ''}">
+      <td class="mono">${esc(row.inv)}</td>
+      <td>${esc(row.st)}</td>
+      <td class="tr mono">${row.sC ? fc(row.sC, stmt.cur) : ''}</td>
+      <td class="tr mono">${row.dC ? fc(row.dC, stmt.cur) : ''}</td>
+      <td class="tr mono">${fc(row.dC_ || 0, stmt.cur)}</td>
+      <td class="tr mono">${row.sT ? fc(row.sT, stmt.cur) : ''}</td>
+      <td class="tr mono">${row.dT ? fc(row.dT, stmt.cur) : ''}</td>
+      <td class="tr mono">${fc(row.dT_ || 0, stmt.cur)}</td>
+      <td class="tr mono">${row.sTot ? fc(row.sTot, stmt.cur) : ''}</td>
+      <td class="tr mono">${row.dTot ? fc(row.dTot, stmt.cur) : ''}</td>
+      <td class="tr mono">${fc(row.dTot_ || 0, stmt.cur)}</td>
+      <td class="tr mono">${row.n || 0}</td>
+      <td>${row.m ? 'OK' : 'Mismatch'}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>${t('invoice')}</th>
+            <th>${t('status')}</th>
+            <th class="tr">Sum ${t('charges')}</th>
+            <th class="tr">Det ${t('charges')}</th>
+            <th class="tr">${t('diff')}</th>
+            <th class="tr">Sum ${t('tax')}</th>
+            <th class="tr">Det ${t('tax')}</th>
+            <th class="tr">${t('diff')}</th>
+            <th class="tr">Sum ${t('total')}</th>
+            <th class="tr">Det ${t('total')}</th>
+            <th class="tr">${t('diff')}</th>
+            <th class="tr">#</th>
+            <th>${t('match')}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSummaryTable(stmt) {
+  const hasFee = stmt.bs.some(row => row.crf || row.rdf);
+  const rows = stmt.bs.map(row => `
+    <tr>
+      <td class="mono">${esc(row.inv)}</td>
+      <td class="tr mono">${fc(row.charges || 0, stmt.cur)}</td>
+      <td class="tr mono">${fc(row.tax || 0, stmt.cur)}</td>
+      ${hasFee ? `<td class="tr mono">${fc(row.crf || 0, stmt.cur)}</td><td class="tr mono">${fc(row.rdf || 0, stmt.cur)}</td>` : ''}
+      <td class="tr mono">${fc(row.total || 0, stmt.cur)}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <details>
+      <summary>${t('billing_sum')} (${stmt.bs.length})</summary>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>${t('invoice')}</th>
+              <th class="tr">${t('charges')}</th>
+              <th class="tr">${t('tax')}</th>
+              ${hasFee ? '<th class="tr">CRF</th><th class="tr">RDF</th>' : ''}
+              <th class="tr">${t('total')}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>
+  `;
+}
+
+function renderDetailTable(stmt, safeId) {
+  const invoices = [...new Set(stmt.li.map(item => item.inv))].sort();
+  const hasCrf = stmt.li.some(item => item.crfRdf);
+  const rows = stmt.li.map(item => `
+    <tr data-inv="${esc(item.inv)}">
+      <td class="mono">${esc(item.inv)}</td>
+      <td class="mono">${esc(item.tranche || '')}</td>
+      <td class="mono">${esc(item.pid || '')}</td>
+      <td>${esc(item.pname || '')}</td>
+      <td class="tr mono">${item.qty ?? ''}</td>
+      <td class="tr mono">${fc(item.up || 0, stmt.cur)}</td>
+      <td class="tr mono">${fc(item.charges || 0, stmt.cur)}</td>
+      <td class="tr mono">${fc(item.tax || 0, stmt.cur)}</td>
+      ${hasCrf ? `<td class="tr mono">${fc(item.crfRdf || 0, stmt.cur)}</td>` : ''}
+      <td class="tr mono">${fc(item.total || 0, stmt.cur)}</td>
+      <td>${esc(item.srcFile || '')}</td>
+      <td class="tr mono">${item.srcPage || ''}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <details>
+      <summary>${t('detail_items')} (${stmt.li.length})</summary>
+      <div class="filter-row">
+        ${invoices.map((inv, index) => `<button class="btn btn-s ${index === 0 ? 'a' : ''}" onclick="fD('${safeId}','${esc(inv)}',this)">${esc(inv)}</button>`).join('')}
+        <button class="btn btn-s" onclick="fD('${safeId}','ALL',this)">All</button>
+      </div>
+      <div class="tw">
+        <table id="${safeId}">
+          <thead>
+            <tr>
+              <th>${t('invoice')}</th>
+              <th>${t('tranche')}</th>
+              <th>${t('product')}</th>
+              <th>${t('name')}</th>
+              <th class="tr">${t('qty')}</th>
+              <th class="tr">${t('unit_price')}</th>
+              <th class="tr">${t('charges')}</th>
+              <th class="tr">${t('tax')}</th>
+              ${hasCrf ? '<th class="tr">CRF/RDF</th>' : ''}
+              <th class="tr">${t('total')}</th>
+              <th>${t('file')}</th>
+              <th class="tr">${t('page')}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>
+  `;
+}
+
+function renderValidationList(stmt) {
+  const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
+  const checks = stmt.vr.map(check => `
+    <div class="vi">
+      <span class="vc ${check.sv === 'p' ? 'p' : check.sv === 'f' ? 'f' : 'w'}">
+        ${check.sv === 'p' ? 'OK' : check.sv === 'f' ? 'ERR' : 'WARN'}
+      </span>
+      <div>
+        <div><strong>${esc(check.nm)}</strong></div>
+        <div class="td">${esc(check.dt)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <details ${issueCount ? 'open' : ''}>
+      <summary>${t('validation')} (${stmt.vr.length} ${t('checks')}, ${issueCount} ${t('issues')})</summary>
+      <div class="validation-list">${checks}</div>
+    </details>
+  `;
+}
+
+function renderHierarchy() {
+  const rows = [];
+  for (const code of Object.keys(analysisResults).sort()) {
+    const group = analysisResults[code];
+    const invCount = group.stmts.reduce((sum, stmt) => sum + stmt.bs.length, 0);
+    const itemCount = group.stmts.reduce((sum, stmt) => sum + stmt.li.length, 0);
+    const chargeTotal = group.stmts.reduce((sum, stmt) => sum + stmt.dGT.charges, 0);
+    const taxTotal = group.stmts.reduce((sum, stmt) => sum + stmt.dGT.tax, 0);
+    const grandTotal = group.stmts.reduce((sum, stmt) => sum + stmt.dGT.total, 0);
+    const issueCount = group.stmts.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length, 0);
+    rows.push(`
+      <tr>
+        <td>${esc(group.meta.flag)} ${esc(group.meta.label)} (${esc(code)})</td>
+        <td class="tr mono">${invCount}</td>
+        <td class="tr mono">${itemCount}</td>
+        <td class="tr mono">${fc(chargeTotal, group.meta.cur)}</td>
+        <td class="tr mono">${fc(taxTotal, group.meta.cur)}</td>
+        <td class="tr mono">${fc(grandTotal, group.meta.cur)}</td>
+        <td class="tr mono ${issueCount ? 'tre' : 'tg'}">${issueCount}</td>
+      </tr>
+    `);
+  }
+  return `
+    <div class="tb">
+      <div><strong>${t('hierarchy')}</strong></div>
+      <div class="td">Country -> Statements</div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>${t('hierarchy')}</th>
+            <th class="tr">${t('invoices')}</th>
+            <th class="tr">${t('items')}</th>
+            <th class="tr">${t('charges')}</th>
+            <th class="tr">${t('tax')}</th>
+            <th class="tr">${t('total')}</th>
+            <th class="tr">${t('issues')}</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function swC(code) {
+  document.querySelectorAll('.gc').forEach(card => card.classList.remove('a'));
+  document.getElementById(`gc-${code}`)?.classList.add('a');
+}
+
+function swTab(id) {
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('a'));
+  document.getElementById(`tab-${id}`)?.classList.add('a');
+  document.querySelectorAll('.tp').forEach(panel => panel.classList.remove('a'));
+  document.getElementById(`tp-${id}`)?.classList.add('a');
+}
+
+function swSub(code, index, total) {
+  for (let i = 0; i < total; i++) {
+    document.getElementById(`sc-${code}-${i}`)?.classList.toggle('a', i === index);
+    document.getElementById(`sc-${code}-p-${i}`)?.classList.toggle('a', i === index);
+  }
+}
+
+function fD(safeId, invoice, btn) {
+  const table = document.getElementById(safeId);
+  if (!table) return;
+  btn.parentElement.querySelectorAll('.btn').forEach(button => button.classList.remove('a'));
+  btn.classList.add('a');
+  table.querySelectorAll('tbody tr').forEach(row => {
+    row.style.display = invoice === 'ALL' || row.dataset.inv === invoice ? '' : 'none';
+  });
+}
+
+window.swC = swC;
+window.swTab = swTab;
+window.swSub = swSub;
+window.fD = fD;
+
+function doExport() {
+  if (!analysisResults) return;
+  const wb = XLSX.utils.book_new();
+  const statements = Object.values(analysisResults).flatMap(group => group.stmts);
+  const summaryRows = [[
+    'File',
+    'Country',
+    'Statement',
+    'Customer',
+    'Invoices',
+    'Line Items',
+    'Issues'
+  ]];
+  const detailRows = [[
+    'File',
+    'Country',
+    'Statement',
+    'Invoice',
+    'Tranche',
+    'PID',
+    'Name',
+    'Qty',
+    'Unit Price',
+    'Charges',
+    'Tax',
+    'Total',
+    'Page'
+  ]];
+
+  for (const stmt of statements) {
+    summaryRows.push([
+      stmt.fileName,
+      stmt.country,
+      stmt.hd.stmtNum,
+      stmt.hd.custName || stmt.hd.custNum || '',
+      stmt.bs.length,
+      stmt.li.length,
+      stmt.vr.filter(check => check.sv === 'f').length,
+    ]);
+    for (const item of stmt.li) {
+      detailRows.push([
+        stmt.fileName,
+        stmt.country,
+        stmt.hd.stmtNum,
+        item.inv,
+        item.tranche || '',
+        item.pid || '',
+        item.pname || '',
+        item.qty ?? '',
+        item.up ?? '',
+        item.charges ?? '',
+        item.tax ?? '',
+        item.total ?? '',
+        item.srcPage ?? '',
+      ]);
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Detail');
+  XLSX.writeFile(wb, `invoice_validator_export_${VERSION}.xlsx`);
+}
+
+window.addFiles = addFiles;
+window.clearAll = clearAll;
+window.doExport = doExport;
+window.removeFile = removeFile;
+window.runAll = runAll;</script>
 </body>
 </html>

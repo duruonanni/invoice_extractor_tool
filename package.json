@@ -15,5 +15,8 @@
   "type": "commonjs",
   "devDependencies": {
     "playwright": "^1.58.2"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^5.5.207"
   }
 }
