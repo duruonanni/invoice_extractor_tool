@@ -1,5 +1,5 @@
 function parseBillingSummaryGeneric(text){
-  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By)/i.test(text);
+  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By|請求概要)/i.test(text);
   const res=[];let m;
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
@@ -71,6 +71,25 @@ function parseBillingSummaryGeneric(text){
   return res;
 }
 
+function parseBillingSummaryJP(lines){
+  const res=[];
+  let inSummary=false;
+  for(let i=0;i<lines.length;i++){
+    const ln=(lines[i].text||'').trim();
+    if(/請求概要/.test(ln)){inSummary=true;continue;}
+    if(!inSummary)continue;
+    if(/請求書番号\s*小計\s*消費税\s*合計/.test(ln))continue;
+    const m=ln.match(/^(\d{7,12})\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/);
+    if(m){
+      res.push({inv:m[1],charges:pN(m[2]),tax:pN(m[3]),total:pN(m[4]),crf:0,rdf:0});
+      continue;
+    }
+    if(res.length&&/^JPY\s*[\d,]+\s+JPY\s*[\d,]+\s+JPY\s*[\d,]+/.test(ln))break;
+    if(res.length&&/^(備考[:：]|シティバンク|1ページ\/\d+ページ|Tax Invoice|請求書)/.test(ln))break;
+  }
+  return res;
+}
+
 function parseBillingSummaryNL(lines){
   const res=[];
   const curSym='(?:\\u20ac|EUR)';
@@ -93,6 +112,7 @@ function parseBillingSummaryNL(lines){
 }
 
 function parseBillingSummary(text,lines,fileName,country){
+  if(country==='JP'&&/請求概要/.test(text))return parseBillingSummaryJP(lines);
   if(country==='NL'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryNL(lines);
   return parseBillingSummaryGeneric(text);
 }
@@ -108,7 +128,8 @@ function parseItemsJP(lines,fileName){
   function jpFwd(i,max){let s='';for(let j=i+1;j<=Math.min(i+max,lines.length-1);j++){const t=lines[j].text.trim();if(!t||pidRe.test(t)||sectRe.test(t)||curRe.test(t))break;s+=(s?' ':'')+t;}return s;}
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
-    const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i);if(im){curInv=im[1];continue}
+    const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i)||ln.match(/請求書番号\s*([\d]{7,12})/);
+    if(im){curInv=im[1];continue}
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
     if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;

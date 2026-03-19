@@ -77,6 +77,19 @@ function normText(t){
     .replace(/\u20a9/g,'KRW');
 }
 
+function inferDisplayName(rawName, country, lines){
+  const name=String(rawName||'');
+  if(!/~\d+\.pdf$/i.test(name))return name;
+  const hd=parseHeader(lines||[]);
+  const stmt=hd.stmtNum||'';
+  const langMap={JP:'JA',KR:'KO'};
+  const lang = langMap[country]||'EN';
+  if(stmt&&country&&country!=='OTHER'){
+    return `${country}_STMT_BRIM_STATEMENT_${stmt}_${lang}.PDF`;
+  }
+  return stmt||name;
+}
+
 async function pdfToLines(file){
   const buf=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,out=[];
   for(let p=1;p<=pdf.numPages;p++){
@@ -140,6 +153,8 @@ function parseHeader(lines){
       }else{
         const sm=ln.match(/Statement\s*No\.?\s*:\s*([A-Z]{2,}\w{5,}|\d{6,})/i);
         if(sm&&!/^(Statement|Date|Customer)$/i.test(sm[1]))h.stmtNum=sm[1];
+        const jm=ln.match(/明細書番号\s*([A-Z]{2,}\w{5,}|\d{6,})/);
+        if(jm)h.stmtNum=jm[1];
       }
     }
     if(!h.date){
@@ -155,6 +170,8 @@ function parseHeader(lines){
       }else{
         const dm=ln.match(/Date\s+of\s+Statement:\s*([\d\/\.\-]+)/i);
         if(dm)h.date=dm[1];
+        const jm=ln.match(/明細書日付\s*([\d\/\.\-]+)/);
+        if(jm)h.date=jm[1];
       }
     }
     if(!h.custNum){
@@ -167,9 +184,16 @@ function parseHeader(lines){
           const lm=look.match(/\b(\d{6,})\b/);
           if(lm){h.custNum=lm[1];break}
         }
+      }else{
+        const jm=ln.match(/お客様番号\s*(\d{6,})/);
+        if(jm)h.custNum=jm[1];
       }
     }
     if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
+    if(!h.period){
+      const pm=ln.match(/請求対象期間\s*(.+)/);
+      if(pm)h.period=pm[1].trim();
+    }
     if(!h.custName){
       const nm=ln.match(/Name:\s*(.+?)(?:\s+Natural\s+of\s+Statement:|\s+Date\s+of\s+Statement:|$)/i);
       if(nm){
@@ -180,6 +204,9 @@ function parseHeader(lines){
           name=`${name} ${nextName[1].trim()}`.replace(/\s+/g,' ');
         }
         if(name&&!/^(Lenovo\s+\(India\)|Lenovo\s+Global\s+Technology\s+India)/i.test(name))h.custName=name;
+      }else{
+        const jm=ln.match(/お客様名\s*(.+)/);
+        if(jm)h.custName=jm[1].trim();
       }
     }
   }

@@ -56,6 +56,7 @@ async function addFiles(fileList) {
         lines.slice(0, 40).map(line => line.text).join('\n'),
         file.name
       );
+      entry.name = inferDisplayName(file.name, entry.country, lines);
       entry.status = 'ready';
     } catch (err) {
       entry.status = 'error';

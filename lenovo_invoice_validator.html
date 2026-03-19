@@ -210,6 +210,19 @@ function normText(t){
     .replace(/\u20a9/g,'KRW');
 }
 
+function inferDisplayName(rawName, country, lines){
+  const name=String(rawName||'');
+  if(!/~\d+\.pdf$/i.test(name))return name;
+  const hd=parseHeader(lines||[]);
+  const stmt=hd.stmtNum||'';
+  const langMap={JP:'JA',KR:'KO'};
+  const lang = langMap[country]||'EN';
+  if(stmt&&country&&country!=='OTHER'){
+    return `${country}_STMT_BRIM_STATEMENT_${stmt}_${lang}.PDF`;
+  }
+  return stmt||name;
+}
+
 async function pdfToLines(file){
   const buf=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,out=[];
   for(let p=1;p<=pdf.numPages;p++){
@@ -273,6 +286,8 @@ function parseHeader(lines){
       }else{
         const sm=ln.match(/Statement\s*No\.?\s*:\s*([A-Z]{2,}\w{5,}|\d{6,})/i);
         if(sm&&!/^(Statement|Date|Customer)$/i.test(sm[1]))h.stmtNum=sm[1];
+        const jm=ln.match(/明細書番号\s*([A-Z]{2,}\w{5,}|\d{6,})/);
+        if(jm)h.stmtNum=jm[1];
       }
     }
     if(!h.date){
@@ -288,6 +303,8 @@ function parseHeader(lines){
       }else{
         const dm=ln.match(/Date\s+of\s+Statement:\s*([\d\/\.\-]+)/i);
         if(dm)h.date=dm[1];
+        const jm=ln.match(/明細書日付\s*([\d\/\.\-]+)/);
+        if(jm)h.date=jm[1];
       }
     }
     if(!h.custNum){
@@ -300,9 +317,16 @@ function parseHeader(lines){
           const lm=look.match(/\b(\d{6,})\b/);
           if(lm){h.custNum=lm[1];break}
         }
+      }else{
+        const jm=ln.match(/お客様番号\s*(\d{6,})/);
+        if(jm)h.custNum=jm[1];
       }
     }
     if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
+    if(!h.period){
+      const pm=ln.match(/請求対象期間\s*(.+)/);
+      if(pm)h.period=pm[1].trim();
+    }
     if(!h.custName){
       const nm=ln.match(/Name:\s*(.+?)(?:\s+Natural\s+of\s+Statement:|\s+Date\s+of\s+Statement:|$)/i);
       if(nm){
@@ -313,6 +337,9 @@ function parseHeader(lines){
           name=`${name} ${nextName[1].trim()}`.replace(/\s+/g,' ');
         }
         if(name&&!/^(Lenovo\s+\(India\)|Lenovo\s+Global\s+Technology\s+India)/i.test(name))h.custName=name;
+      }else{
+        const jm=ln.match(/お客様名\s*(.+)/);
+        if(jm)h.custName=jm[1].trim();
       }
     }
   }
@@ -342,7 +369,7 @@ function parseHeader(lines){
 }
 
 function parseBillingSummaryGeneric(text){
-  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By)/i.test(text);
+  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By|請求概要)/i.test(text);
   const res=[];let m;
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
@@ -414,6 +441,25 @@ function parseBillingSummaryGeneric(text){
   return res;
 }
 
+function parseBillingSummaryJP(lines){
+  const res=[];
+  let inSummary=false;
+  for(let i=0;i<lines.length;i++){
+    const ln=(lines[i].text||'').trim();
+    if(/請求概要/.test(ln)){inSummary=true;continue;}
+    if(!inSummary)continue;
+    if(/請求書番号\s*小計\s*消費税\s*合計/.test(ln))continue;
+    const m=ln.match(/^(\d{7,12})\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/);
+    if(m){
+      res.push({inv:m[1],charges:pN(m[2]),tax:pN(m[3]),total:pN(m[4]),crf:0,rdf:0});
+      continue;
+    }
+    if(res.length&&/^JPY\s*[\d,]+\s+JPY\s*[\d,]+\s+JPY\s*[\d,]+/.test(ln))break;
+    if(res.length&&/^(備考[:：]|シティバンク|1ページ\/\d+ページ|Tax Invoice|請求書)/.test(ln))break;
+  }
+  return res;
+}
+
 function parseBillingSummaryNL(lines){
   const res=[];
   const curSym='(?:\\u20ac|EUR)';
@@ -436,6 +482,7 @@ function parseBillingSummaryNL(lines){
 }
 
 function parseBillingSummary(text,lines,fileName,country){
+  if(country==='JP'&&/請求概要/.test(text))return parseBillingSummaryJP(lines);
   if(country==='NL'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryNL(lines);
   return parseBillingSummaryGeneric(text);
 }
@@ -451,7 +498,8 @@ function parseItemsJP(lines,fileName){
   function jpFwd(i,max){let s='';for(let j=i+1;j<=Math.min(i+max,lines.length-1);j++){const t=lines[j].text.trim();if(!t||pidRe.test(t)||sectRe.test(t)||curRe.test(t))break;s+=(s?' ':'')+t;}return s;}
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
-    const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i);if(im){curInv=im[1];continue}
+    const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i)||ln.match(/請求書番号\s*([\d]{7,12})/);
+    if(im){curInv=im[1];continue}
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
     if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
@@ -1382,6 +1430,7 @@ async function addFiles(fileList) {
         lines.slice(0, 40).map(line => line.text).join('\n'),
         file.name
       );
+      entry.name = inferDisplayName(file.name, entry.country, lines);
       entry.status = 'ready';
     } catch (err) {
       entry.status = 'error';
