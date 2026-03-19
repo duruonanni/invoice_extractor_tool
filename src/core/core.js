@@ -137,6 +137,9 @@ function parseHeader(lines){
           const lm=look.match(/\b([A-Z]{2,}\w{5,}|\d{6,})\b/);
           if(lm){h.stmtNum=lm[1];break}
         }
+      }else{
+        const sm=ln.match(/Statement\s*No\.?\s*:\s*([A-Z]{2,}\w{5,}|\d{6,})/i);
+        if(sm&&!/^(Statement|Date|Customer)$/i.test(sm[1]))h.stmtNum=sm[1];
       }
     }
     if(!h.date){
@@ -149,6 +152,9 @@ function parseHeader(lines){
           const lm=look.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
           if(lm){h.date=lm[1];break}
         }
+      }else{
+        const dm=ln.match(/Date\s+of\s+Statement:\s*([\d\/\.\-]+)/i);
+        if(dm)h.date=dm[1];
       }
     }
     if(!h.custNum){
@@ -164,6 +170,18 @@ function parseHeader(lines){
       }
     }
     if(!h.period){const m=ln.match(/(?:Billing\s*Period|Recurring\s*Charge\s*Period)[:\s]*(.+)/i);if(m)h.period=m[1].trim()}
+    if(!h.custName){
+      const nm=ln.match(/Name:\s*(.+?)(?:\s+Natural\s+of\s+Statement:|\s+Date\s+of\s+Statement:|$)/i);
+      if(nm){
+        let name=nm[1].trim();
+        const next=(lines[i+1]?.text||'').trim();
+        const nextName=next.match(/^([A-Z0-9&().,'\/ -]{2,}?)\s+(?:Natural\s+of\s+Statement:|Date\s+of\s+Statement:|PO\s+No:|Address:|State:|GSTIN|Bill\s+To\s+Country:|Remark:|$)/i);
+        if(nextName&&nextName[1]&&!/^(Address|State|Remark|PO)$/i.test(nextName[1])){
+          name=`${name} ${nextName[1].trim()}`.replace(/\s+/g,' ');
+        }
+        if(name&&!/^(Lenovo\s+\(India\)|Lenovo\s+Global\s+Technology\s+India)/i.test(name))h.custName=name;
+      }
+    }
   }
   for(let i=0;i<Math.min(lines.length,15);i++){
     const ln=lines[i].text.trim();
