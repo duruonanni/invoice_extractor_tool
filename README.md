@@ -18,6 +18,7 @@ Single-file HTML tool for validating Lenovo invoice PDFs locally in the browser.
 
 ```bash
 npm run build
+npm run release:sync
 npm run regression
 node --check src/core/core.js
 node --check src/parsers/parsers.js
@@ -30,6 +31,11 @@ node --check src/ui/ui.js
 
 - `release/lenovo_invoice_validator.html`: primary release artifact
 - `lenovo_invoice_validator.html`: compatibility copy kept for existing local/manual workflows
+
+`npm run release:sync` also:
+
+- copies the latest release to OneDrive as `lenovo_invoice_validator_latest.html`
+- archives the previous synced file under the sibling `history/` directory using its version number
 
 ## Testing
 
@@ -47,3 +53,4 @@ See `tests/README.md` for the sample-data convention.
 
 - Keep parser changes small and regression-driven.
 - Treat files under `archive/` as historical utilities unless they are deliberately promoted back into the active workflow.
+- Git post-commit sync uses `.githooks/post-commit` on Unix-like systems and `.githooks/post-commit.cmd` on Windows.

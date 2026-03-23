@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node scripts/build_release.mjs",
     "check": "node scripts/check.mjs",
+    "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
     "test": "node tests/regression.mjs"
   },
