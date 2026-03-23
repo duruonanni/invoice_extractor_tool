@@ -4,7 +4,7 @@ import { pathToFileURL } from 'url';
 import fs from 'fs';
 
 const root = process.cwd();
-const toolHtml = path.resolve(root, 'lenovo_invoice_validator.html');
+const toolHtml = path.resolve(root, 'release', 'lenovo_invoice_validator.html');
 const manualHtml = path.resolve(root, 'docs', 'Lenovo_Invoice_Validator_User_Manual.html');
 const assetsDir = path.resolve(root, 'docs', 'manual_assets');
 const manualPdf = path.resolve(root, 'docs', 'Lenovo_Invoice_Validator_User_Manual.pdf');

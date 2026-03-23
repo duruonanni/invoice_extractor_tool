@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $HtmlPath) {
   $repoRoot = Split-Path -Parent $PSScriptRoot
-  $HtmlPath = Join-Path $repoRoot "lenovo_invoice_validator.html"
+  $HtmlPath = Join-Path $repoRoot "release\lenovo_invoice_validator.html"
 }
 
 if (-not (Test-Path $HtmlPath)) {

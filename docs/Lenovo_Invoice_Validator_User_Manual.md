@@ -18,13 +18,13 @@ It runs locally in your browser and does not upload files to any server.
 
 ## Requirements
 - A modern browser (Chrome or Edge recommended)
-- The file `lenovo_invoice_validator.html`
+- The generated file `release/lenovo_invoice_validator.html`
 - One or more Lenovo invoice PDFs
 
 ---
 
 ## 1) Open the Tool
-Double‑click `lenovo_invoice_validator.html` to open it in your browser.
+Double‑click `release/lenovo_invoice_validator.html` to open it in your browser.
 
 Screenshot 1: Tool landing page  
 `[screenshot: step01_open.png]`
@@ -94,4 +94,3 @@ If you need help, provide:
 - The PDF filename(s)
 - The exact validation message(s)
 - A screenshot of the result panel
-

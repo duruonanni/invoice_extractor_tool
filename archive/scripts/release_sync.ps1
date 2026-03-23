@@ -13,7 +13,7 @@ function Get-VersionFromFile([string]$path) {
   return ""
 }
 
-$src = Join-Path $PSScriptRoot "..\lenovo_invoice_validator.html" | Resolve-Path
+$src = Join-Path $PSScriptRoot "..\release\lenovo_invoice_validator.html" | Resolve-Path
 $historyDir = Join-Path $ReleaseDir "History"
 $latest = Join-Path $ReleaseDir "lenovo_invoice_validator_latest.html"
 

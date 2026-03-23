@@ -11,3 +11,4 @@ src_script_raw.js
 *.bak
 Thumbs.db
 desktop.ini
+.vscode/

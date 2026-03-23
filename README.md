@@ -30,7 +30,6 @@ node --check src/ui/ui.js
 `npm run build` generates:
 
 - `release/lenovo_invoice_validator.html`: primary release artifact
-- `lenovo_invoice_validator.html`: compatibility copy kept for existing local/manual workflows
 
 `npm run release:sync` also:
 
