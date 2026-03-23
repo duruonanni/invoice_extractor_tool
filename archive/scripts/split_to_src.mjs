@@ -1,7 +1,7 @@
 ﻿import fs from 'fs';
 import path from 'path';
 const root='C:/Users/kate_/Documents/Codex_WorkStation/codex_invoice_extractor_tool';
-const htmlPath=path.join(root,'lenovo_invoice_validator.html');
+const htmlPath=path.join(root,'release','lenovo_invoice_validator.html');
 const scriptRawPath=path.join(root,'src_script_raw.js');
 const raw=fs.readFileSync(scriptRawPath,'utf8');
 const idxBilling=raw.indexOf('function parseBillingSummary');

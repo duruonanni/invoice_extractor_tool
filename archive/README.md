@@ -9,3 +9,4 @@ Current archived items:
 - manual generation helpers
 - old release-sync helpers
 - legacy validation utilities
+- migration helpers from earlier single-file versions

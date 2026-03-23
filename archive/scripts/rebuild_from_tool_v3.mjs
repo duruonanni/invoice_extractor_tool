@@ -1,7 +1,8 @@
 import fs from 'fs';
+import path from 'path';
 
 const src = 'C:/Users/kate_/Documents/Claude_WrokStation/invoice_extractor_tool/tool_v3/lenovo_invoice_validator.html';
-const dst = 'C:/Users/kate_/Documents/Codex_WorkStation/codex_invoice_extractor_tool/lenovo_invoice_validator.html';
+const dst = 'C:/Users/kate_/Documents/Codex_WorkStation/codex_invoice_extractor_tool/release/lenovo_invoice_validator.html';
 
 let html = fs.readFileSync(src, 'utf8');
 
@@ -121,5 +122,6 @@ html = html.replace(/if\(\/Invoice[^\n]*\)\s*&&[^\n]*\)\{\n\s*if\(i\+1<lines\.le
 // Two-line ODN in other parsers (generic / CH) adjustments
 html = html.replace(/pm=pk\.match\(\/\^\(\\d\{7,12\}\)\//g, "pm=pk.match(/^([A-Z]{2,}\\d{6,}|\\d{7,12})/");
 
+fs.mkdirSync(path.dirname(dst), { recursive: true });
 fs.writeFileSync(dst, html, 'utf8');
 console.log('Rebuilt from tool_v3 with optimizations ->', dst);
