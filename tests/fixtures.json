@@ -12,8 +12,10 @@
     {
       "country": "JP",
       "file": "JP01_STMT_BRIM_STATEMENT_EPREJPP0000568_JA.PDF",
-      "min_invoices": 1,
-      "min_items": 1
+      "min_invoices": 7,
+      "min_items": 396,
+      "max_failed_checks": 0,
+      "max_mismatches": 0
     },
     {
       "country": "US",
