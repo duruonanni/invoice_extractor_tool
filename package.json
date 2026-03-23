@@ -11,7 +11,8 @@
     "check": "node scripts/check.mjs",
     "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
-    "test": "node tests/regression.mjs"
+    "test": "node tests/regression.mjs",
+    "version:bump": "node scripts/bump_release_version.mjs"
   },
   "keywords": [],
   "author": "",

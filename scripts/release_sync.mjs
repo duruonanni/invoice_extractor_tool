@@ -24,6 +24,28 @@ function sameFileContent(a, b) {
   return fs.readFileSync(a, 'utf8') === fs.readFileSync(b, 'utf8');
 }
 
+function assertVersionReadyForRelease() {
+  const newVersion = readVersion(sourceHtml);
+  if (!newVersion) {
+    throw new Error(`Release VERSION constant not found in ${sourceHtml}`);
+  }
+
+  if (!fs.existsSync(latestTarget)) {
+    return;
+  }
+
+  const latestVersion = readVersion(latestTarget);
+  if (sameFileContent(sourceHtml, latestTarget)) {
+    return;
+  }
+
+  if (newVersion === latestVersion) {
+    throw new Error(
+      `Release content changed but VERSION is still v${newVersion}. Bump src/core/core.js before running release:sync.`,
+    );
+  }
+}
+
 function buildRelease() {
   const result = spawnSync(process.execPath, [path.join(root, 'scripts', 'build_release.mjs')], {
     cwd: root,
@@ -63,6 +85,7 @@ if (!fs.existsSync(sourceHtml)) {
 fs.mkdirSync(latestDir, { recursive: true });
 fs.mkdirSync(historyDir, { recursive: true });
 
+assertVersionReadyForRelease();
 archiveLatestIfNeeded();
 fs.copyFileSync(sourceHtml, latestTarget);
 
