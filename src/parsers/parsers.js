@@ -141,6 +141,8 @@ function parseItemsJP(lines,fileName){
     if(!t)return false;
     if(pidRe.test(t)||sectRe.test(t)||curRe.test(t))return false;
     if(/^\d[\d,\s.%-]*$/.test(t))return false;
+    if(/^\d+\s*ページ\s*\/\s*\d+\s*ページ$/i.test(t))return false;
+    if(/^\d+\s*\/\s*\d+$/.test(t))return false;
     if(/^(請求書|ご契約先|請求先|送付先|お客様番号|お客様名|請求対象期間|サービス内容|備考|支払期限|支払期日|お問い合わせ先|電話番号|メールアドレス|発行日|発行ID|ページ)/.test(t))return false;
     return true;
   }
