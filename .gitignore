@@ -5,7 +5,7 @@ Input/
 .npm-cache/
 .cache/
 release/
-src_script_raw.js
+/src_script_raw.js
 *.log
 *.tmp
 *.bak

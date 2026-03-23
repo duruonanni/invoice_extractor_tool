@@ -10,3 +10,5 @@ Current archived items:
 - old release-sync helpers
 - legacy validation utilities
 - migration helpers from earlier single-file versions
+- raw script snapshots from earlier single-file versions
+- dated regression reports kept for historical reference
