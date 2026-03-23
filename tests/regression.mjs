@@ -9,6 +9,13 @@ const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, '..');
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, 'tests', 'fixtures.json'), 'utf8'));
 const workerHref = pathToFileURL(path.join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')).href;
+const sampleDirCandidates = [
+  process.env.INVOICE_SAMPLE_DIR,
+  '/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview',
+  path.join(root, fixtures.base_dir),
+].filter(Boolean);
+
+const sampleRoot = sampleDirCandidates.find(dir => fs.existsSync(dir));
 
 class MinimalDOMMatrix {
   constructor(values = [1, 0, 0, 1, 0, 0]) {
@@ -62,8 +69,18 @@ const { pdfToLines, parseStatement } = context;
 if (!pdfToLines || !parseStatement) throw new Error('Core functions missing');
 
 let failed = false;
+if (!sampleRoot) {
+  console.error('Sample PDF directory not found. Checked:');
+  for (const dir of sampleDirCandidates) {
+    console.error(`- ${dir}`);
+  }
+  process.exit(1);
+}
+
+console.log(`Using sample PDF directory: ${sampleRoot}`);
+
 for (const c of fixtures.cases) {
-  const filePath = path.join(root, fixtures.base_dir, c.file);
+  const filePath = path.join(sampleRoot, c.file);
   if (!fs.existsSync(filePath)) {
     console.error(`MISSING: ${c.file}`);
     failed = true;

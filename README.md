@@ -35,7 +35,11 @@ node --check src/ui/ui.js
 
 Regression fixtures are defined in `tests/fixtures.json`.
 
-The repository does not currently include the approved PDF samples, so `npm run regression` requires the fixture PDFs to exist locally at the path expected by `tests/fixtures.json`.
+The repository does not currently include the approved PDF samples. By default, regression looks for them at:
+
+`/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
+
+You can override that with `INVOICE_SAMPLE_DIR`.
 
 See `tests/README.md` for the sample-data convention.
 
