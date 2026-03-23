@@ -7,7 +7,10 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node scripts/build_release.mjs",
+    "check": "node scripts/check.mjs",
+    "regression": "node tests/regression.mjs",
+    "test": "node tests/regression.mjs"
   },
   "keywords": [],
   "author": "",

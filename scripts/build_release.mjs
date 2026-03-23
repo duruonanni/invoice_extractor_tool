@@ -1,7 +1,10 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const root = path.resolve('C:/Users/kate_/Documents/Codex_WorkStation/codex_invoice_extractor_tool');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, '..');
 const templatePath = path.join(root, 'src', 'index.template.html');
 const outPath = path.join(root, 'lenovo_invoice_validator.html');
 const releasePath = path.join(root, 'release', 'lenovo_invoice_validator.html');
@@ -20,6 +23,7 @@ if (!template.includes('/*__SCRIPT__*/')) {
 }
 
 const out = template.replace('/*__SCRIPT__*/', () => script);
+fs.mkdirSync(path.dirname(releasePath), { recursive: true });
 fs.writeFileSync(outPath, out, 'utf8');
 fs.writeFileSync(releasePath, out, 'utf8');
 console.log('Built:', outPath, 'and', releasePath);

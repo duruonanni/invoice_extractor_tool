@@ -2,11 +2,32 @@ import fs from 'fs';
 import path from 'path';
 import vm from 'vm';
 import { pathToFileURL } from 'url';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { fileURLToPath } from 'url';
 
-const root = path.resolve('C:/Users/kate_/Documents/Codex_WorkStation/codex_invoice_extractor_tool');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, '..');
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, 'tests', 'fixtures.json'), 'utf8'));
 const workerHref = pathToFileURL(path.join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')).href;
+
+class MinimalDOMMatrix {
+  constructor(values = [1, 0, 0, 1, 0, 0]) {
+    [this.a, this.b, this.c, this.d, this.e, this.f] = values;
+  }
+  multiplySelf() { return this; }
+  preMultiplySelf() { return this; }
+  translateSelf(tx = 0, ty = 0) { this.e += tx; this.f += ty; return this; }
+  scaleSelf() { return this; }
+  rotateSelf() { return this; }
+  inverse() { return this; }
+  transformPoint(point) { return point; }
+}
+
+globalThis.DOMMatrix = globalThis.DOMMatrix || MinimalDOMMatrix;
+globalThis.ImageData = globalThis.ImageData || class ImageData {};
+globalThis.Path2D = globalThis.Path2D || class Path2D {};
+
+const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 pdfjs.GlobalWorkerOptions.workerSrc = workerHref;
 
 const core = fs.readFileSync(path.join(root, 'src', 'core', 'core.js'), 'utf8');
@@ -15,8 +36,22 @@ const parsers = fs.readFileSync(path.join(root, 'src', 'parsers', 'parsers.js'),
 const context = {
   console,
   pdfjsLib: pdfjs,
-  document: { getElementById: () => ({ textContent: '' }) },
-  window: {},
+  document: {
+    getElementById: () => ({ textContent: '', style: {}, addEventListener: () => {}, querySelector: () => null }),
+    querySelectorAll: () => [],
+    documentElement: { setAttribute: () => {} },
+  },
+  window: {
+    matchMedia: () => ({
+      matches: false,
+      addEventListener: () => {},
+      addListener: () => {},
+    }),
+  },
+  localStorage: {
+    getItem: () => null,
+    setItem: () => {},
+  },
 };
 vm.createContext(context);
 vm.runInContext(core, context, { filename: 'core.js' });
