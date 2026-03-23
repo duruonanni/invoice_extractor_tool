@@ -205,7 +205,7 @@ function parseItemsUS(lines,fileName){
   return items;
 }
 
-// 鈹€鈹€ CH Parser (Switzerland 鈥?CHF, decimal qty, 8.10% VAT) 鈹€鈹€
+// CH parser: Switzerland (CHF, decimal qty, 8.10% VAT)
 function parseItemsCH(lines,fileName){
   const items=[];let curInv='',curTr='';
   // Full pattern: product name + qty + CHF up + CHF charges + rate% + CHF tax + CHF total
@@ -218,7 +218,7 @@ function parseItemsCH(lines,fileName){
     const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      // CH: "Invoice Number  Invoice Date  Customer Number" 鈫?number on next line
+      // CH layout sometimes places the invoice number on the next line.
       if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
       continue;
     }
@@ -251,7 +251,7 @@ function parseItemsCH(lines,fileName){
   return items;
 }
 
-// 鈹€鈹€ EMEA Parser (AT/BE/DE/ES/FR/GB/GR/IE/IT/NL/PT/SE 鈥?EUR/GBP/SEK with non-WBD support) 鈹€鈹€
+// EMEA parser: EUR/GBP/SEK layouts with non-WBD support
 function parseItemsEMEA(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore (e.g. 21FBSDGX0L_AAS, 78722528_AAS)
@@ -367,7 +367,7 @@ function parseItemsEMEA(lines,fileName){
   return items;
 }
 
-// 鈹€鈹€ KR Parser (South Korea 鈥?鈧?/ $ with Korean labels) 鈹€鈹€
+// KR parser: South Korea layouts with Korean labels
 function parseItemsKR(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
@@ -629,7 +629,7 @@ function parseItemsIN(lines,fileName){
   return items;
 }
 
-// 鈹€鈹€ Generic Parser (AU/HK/TH/NZ/MY/PH/CA/SG + fallback) 鈹€鈹€
+// AT01 parser
 function parseItemsAT01(lines,fileName){
   const items=[];let curInv='',curTr='';let pending=[];
   const curSym='(?:\\u20ac|\\u00a3|\\u00e2\\u201a\\u00ac|\\u0432\\u201a\\u00ac|EUR|CHF|GBP|SEK)';
@@ -858,13 +858,13 @@ function parseItemsNL11(lines,fileName){
 
 function parseItemsGen(lines,fileName,knownInvs,country){
   const items=[];let curInv='',curTr='';
-  // TH PDFs contain 3 identical copies (ORIGINAL/CUSTOMER/BILLING COPY) 鈥?only parse ORIGINAL COPY pages
+  // TH PDFs contain repeated copies; only parse ORIGINAL COPY pages.
   const skipPages=new Set();
   if(country==='TH')for(const{text:ln,page}of lines){if(/CUSTOMER\s+COPY|BILLING\s+COPY/i.test(ln))skipPages.add(page);}
   // General product ID: WBD... or alphanumeric+underscore
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  // Currency patterns 鈥?support $, RM, or no symbol
+  // Currency patterns support $, RM, or no symbol.
   const curSym='(?:\\$|RM)';
   // With $ or RM: pname qty CUR up CUR charges rate% CUR tax CUR total
   const reA=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)');
@@ -919,7 +919,7 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   return items;
 }
 
-// 鈹€鈹€ Router 鈹€鈹€
+// Parser router
 function parseItems(country,lines,fileName,knownInvs){
   if(/^AT01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsAT01(lines,fileName);
   if(/^GB11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsGB11(lines,fileName);
@@ -939,7 +939,7 @@ function parseItems(country,lines,fileName,knownInvs){
   return parseItemsGen(lines,fileName,knownInvs,country);
 }
 
-// 鈹€鈹€ Full statement parse 鈹€鈹€
+// Full statement parse
 function parseStatement(lines,fileName){
   const fullText=lines.map(l=>l.text).join('\n');
   const country=detectCountry(fullText,fileName);
@@ -999,5 +999,3 @@ function parseStatement(lines,fileName){
 
   return{fileName,country,cur,hd,bs,li,sT,dt,dGT,comp,unmS,unmD,vr};
 }
-
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲

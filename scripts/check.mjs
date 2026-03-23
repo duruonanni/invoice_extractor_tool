@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,12 +15,18 @@ const files = [
 ];
 
 let failed = false;
+const mojibakePatterns = [/閳/, /鈺/, /鈹/, /馃/, /鈥\?/, /路/];
 
 for (const file of files) {
   const result = spawnSync(process.execPath, ['--check', file], {
     stdio: 'inherit',
   });
   if (result.status !== 0) {
+    failed = true;
+  }
+  const text = fs.readFileSync(file, 'utf8');
+  if (mojibakePatterns.some(pattern => pattern.test(text))) {
+    console.error(`Mojibake check failed: ${file}`);
     failed = true;
   }
 }
