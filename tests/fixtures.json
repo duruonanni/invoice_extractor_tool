@@ -15,7 +15,20 @@
       "min_invoices": 7,
       "min_items": 396,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "non_empty_tranche": true,
+        "pname_contains": [
+          {
+            "pid": "WBD0A55066",
+            "contains": "Japan Without Autopilot NoteBook"
+          },
+          {
+            "pid": "WBD0A55067",
+            "contains": "Japan With Autopilot NoteBook"
+          }
+        ]
+      }
     },
     {
       "country": "US",

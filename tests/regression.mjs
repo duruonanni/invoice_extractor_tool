@@ -68,6 +68,32 @@ vm.runInContext(parsers, context, { filename: 'parsers.js' });
 const { pdfToLines, parseStatement } = context;
 if (!pdfToLines || !parseStatement) throw new Error('Core functions missing');
 
+function evaluateAssertions(statement, assertions = {}) {
+  const failures = [];
+
+  if (assertions.non_empty_tranche) {
+    const missing = statement.li.filter(item => !String(item.tranche || '').trim());
+    if (missing.length) {
+      failures.push(`missing tranche on ${missing.length} line item(s)`);
+    }
+  }
+
+  if (Array.isArray(assertions.pname_contains)) {
+    for (const rule of assertions.pname_contains) {
+      const item = statement.li.find(entry => entry.pid === rule.pid);
+      if (!item) {
+        failures.push(`missing item for pid ${rule.pid}`);
+        continue;
+      }
+      if (!String(item.pname || '').includes(rule.contains)) {
+        failures.push(`pid ${rule.pid} missing text "${rule.contains}" in pname`);
+      }
+    }
+  }
+
+  return failures;
+}
+
 let failed = false;
 if (!sampleRoot) {
   console.error('Sample PDF directory not found. Checked:');
@@ -97,12 +123,17 @@ for (const c of fixtures.cases) {
   const items = st.li.length;
   const failedChecks = st.vr.filter(check => check.sv === 'f').length;
   const mismatches = st.comp.filter(row => !row.m).length;
+  const assertionFailures = evaluateAssertions(st, c.assertions);
   const ok =
     invs >= c.min_invoices &&
     items >= c.min_items &&
     (c.max_failed_checks == null || failedChecks <= c.max_failed_checks) &&
-    (c.max_mismatches == null || mismatches <= c.max_mismatches);
+    (c.max_mismatches == null || mismatches <= c.max_mismatches) &&
+    assertionFailures.length === 0;
   console.log(`${c.country} ${c.file}: invoices=${invs}, items=${items}, failedChecks=${failedChecks}, mismatches=${mismatches} => ${ok ? 'PASS' : 'FAIL'}`);
+  if (assertionFailures.length) {
+    console.error(`  assertionFailures: ${assertionFailures.join(' | ')}`);
+  }
   if (!ok) failed = true;
 }
 

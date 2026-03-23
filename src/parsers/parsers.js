@@ -122,15 +122,65 @@ function parseItemsJP(lines,fileName){
   const items=[];let curInv='',curTr='';
   const reFull=/(.+?)\s+([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+(\d+)\s*%\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/;
   const reNums=/^\s*([\d,]+)\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)\s+(\d+)\s*%\s+JPY\s*([\d,]+)\s+JPY\s*([\d,]+)/;
-  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
+  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID|発行ID|請求書番号|製品ID|製品名称|数量|単価|小計|消費税率|消費税|合計/i;
   const curRe=/JPY\s*[\d,]+/;
-  const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
-  function jpFwd(i,max){let s='';for(let j=i+1;j<=Math.min(i+max,lines.length-1);j++){const t=lines[j].text.trim();if(!t||pidRe.test(t)||sectRe.test(t)||curRe.test(t))break;s+=(s?' ':'')+t;}return s;}
+  const pidRe=/^([A-Z0-9][A-Z0-9_]{4,})\b/;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim().replace(/_\s+/g,'_').replace(/\s+_/g,'_');}
+  function mergeParts(parts){
+    const out=[];
+    for(const raw of parts){
+      const part=clean(raw);
+      if(!part)continue;
+      if(out.length&&out[out.length-1]===part)continue;
+      out.push(part);
+    }
+    return out.join(' ').trim();
+  }
+  function isJPContextLine(text){
+    const t=clean(text);
+    if(!t)return false;
+    if(pidRe.test(t)||sectRe.test(t)||curRe.test(t))return false;
+    if(/^\d[\d,\s.%-]*$/.test(t))return false;
+    if(/^(請求書|ご契約先|請求先|送付先|お客様番号|お客様名|請求対象期間|サービス内容|備考|支払期限|支払期日|お問い合わせ先|電話番号|メールアドレス|発行日|発行ID|ページ)/.test(t))return false;
+    return true;
+  }
+  function isJPHeadingLine(text){
+    const t=clean(text);
+    if(!isJPContextLine(t))return false;
+    if(/_/.test(t))return false;
+    if(/[-/]$/.test(t))return false;
+    return /[A-Za-z]/.test(t);
+  }
+  function isJPSuffixLine(text){
+    const t=clean(text);
+    if(!isJPContextLine(t))return false;
+    return !isJPHeadingLine(t);
+  }
+  function jpPrefix(i){
+    const prefixParts=[];
+    for(let j=i-1;j>=Math.max(0,i-3);j--){
+      const prev=clean(lines[j].text);
+      if(!prev)continue;
+      if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
+      if(isJPHeadingLine(prev))prefixParts.unshift(prev);
+    }
+    return prefixParts;
+  }
+  function jpSuffix(i,max){
+    const out=[];
+    for(let j=i+1;j<=Math.min(i+max,lines.length-1);j++){
+      const t=clean(lines[j].text);
+      if(!t||pidRe.test(t)||sectRe.test(t)||curRe.test(t))break;
+      if(!isJPSuffixLine(t))break;
+      out.push(t);
+    }
+    return out.join(' ');
+  }
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i)||ln.match(/請求書番号\s*([\d]{7,12})/);
     if(im){curInv=im[1];continue}
-    const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
+    const tm=ln.match(/(?:Tranche\s*ID|発行ID)\s+(\S+)/i);if(tm){curTr=tm[1];continue}
     if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
@@ -138,25 +188,18 @@ function parseItemsJP(lines,fileName){
     if(m){
       const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
       if(tot>0){
-        let prefix='';
-        if(i>0){const prev=lines[i-1].text.trim();if(prev&&!pidRe.test(prev)&&!sectRe.test(prev)&&!curRe.test(prev))prefix=prev;}
-        const suffix=jpFwd(i,1);
-        const pname=[prefix,m[1].trim(),suffix].filter(Boolean).join(' ');
+        const prefixParts=jpPrefix(i);
+        const suffix=jpSuffix(i,1);
+        const pname=mergeParts([...prefixParts,m[1].trim(),suffix]);
         items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
         continue;
       }
     }
     m=reNums.exec(after);
     if(m){
-      let pname='';
-      for(let j=i-1;j>=Math.max(0,i-2);j--){
-        const prev=lines[j].text.trim();
-        if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
-      }
-      const suffix=jpFwd(i,2);
-      if(suffix)pname=(pname?pname+' ':'')+suffix;
+      const prefixParts=jpPrefix(i);
+      const suffix=jpSuffix(i,2);
+      const pname=mergeParts([...prefixParts,suffix]);
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
       if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
     }
