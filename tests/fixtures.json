@@ -50,6 +50,38 @@
       }
     },
     {
+      "country": "HK",
+      "file": "HK01_STMT_BRIM_STATEMENT_EPREHKP0000393.PDF",
+      "min_invoices": 8,
+      "min_items": 30,
+      "assertions": {
+        "customer_name": "CLP Power Hong Kong Limited",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100441493",
+            "contains": "30 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
+      "country": "HK",
+      "file": "HK52_STMT_BRIM_STATEMENT_EPREHKP0000398.PDF",
+      "min_invoices": 1,
+      "min_items": 8,
+      "assertions": {
+        "customer_name": "Lenovo Global Financial Services(Nether lands) B.V.",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100462508",
+            "contains": "60 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
       "country": "AT",
       "file": "AT01_STMT_BRIM_STATEMENT_EPREATP0000192_EN.PDF",
       "min_invoices": 31,
@@ -207,6 +239,22 @@
           {
             "inv": "100441553",
             "contains": "60 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
+      "country": "SG",
+      "file": "SG11_STMT_BRIM_STATEMENT_EPRESGP0000403.PDF",
+      "min_invoices": 4,
+      "min_items": 10,
+      "assertions": {
+        "customer_name": "Foot Locker Asia Pte. Ltd.",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100439205",
+            "contains": "30 days from date of invoice"
           }
         ]
       }

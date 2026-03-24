@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.17';
+const VERSION='3.12.18';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -185,7 +185,7 @@ function computeExportFilename(statements,date=new Date()){
 }
 
 function extractInvoiceMetadata(lines,country){
-  const supported=new Set(['CH','AT','NL','AU','TH','US']);
+  const supported=new Set(['CH','AT','NL','AU','TH','US','HK','SG']);
   if(!supported.has(country))return new Map();
   const meta=new Map();
   let curInv='';
@@ -390,6 +390,11 @@ function parseHeader(lines){
       break;
     }
   }
-  if(!h.custName)for(const{text:ln}of lines){const m=ln.match(/Customer\s*Name[:\s]*(.+)/i);if(m&&isLikelyCustomerName(m[1])){h.custName=m[1].trim();break}}
+  for(const{text:ln}of lines){
+    const m=ln.match(/(?:SAP\s+)?Customer\s*Name[:\s]*(.+)/i);
+    if(!m||!isLikelyCustomerName(m[1]))continue;
+    const candidate=m[1].trim();
+    if(!h.custName||candidate.length>h.custName.length)h.custName=candidate;
+  }
   return h;
 }
