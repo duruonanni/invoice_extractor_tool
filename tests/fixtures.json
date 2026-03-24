@@ -99,6 +99,36 @@
       }
     },
     {
+      "country": "BE",
+      "file": "BE01_STMT_BRIM_STATEMENT_EPREBEP0000075_EN.PDF",
+      "min_invoices": 5,
+      "min_items": 8,
+      "assertions": {
+        "customer_name": "Infosys consulting Belgium",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "BE",
+      "file": "BE01_STMT_BRIM_STATEMENT_EPREBEP0000077_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 1,
+      "assertions": {
+        "customer_name": "Infosys consulting Belgium",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "BE",
+      "file": "BE01_STMT_BRIM_STATEMENT_EPREBEP0000078_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 1,
+      "assertions": {
+        "customer_name": "Shiseido Belgium",
+        "non_empty_tranche": true
+      }
+    },
+    {
       "country": "JP",
       "file": "JP01_STMT_BRIM_STATEMENT_EPREJPP0000568_JA.PDF",
       "min_invoices": 7,
@@ -212,6 +242,55 @@
       }
     },
     {
+      "country": "DE",
+      "file": "DE01_STMT_BRIM_STATEMENT_EPREDEP0001379_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 100,
+      "assertions": {
+        "customer_name": "TE Connectivity Germany GmbH",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "DE",
+      "file": "DE05_STMT_BRIM_STATEMENT_EPREDEP0001389_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 1,
+      "assertions": {
+        "customer_name": "ALSO International Services GmbH"
+      }
+    },
+    {
+      "country": "ES",
+      "file": "ES01_STMT_BRIM_STATEMENT_EPREESP0000338_EN.PDF",
+      "min_invoices": 6,
+      "min_items": 6,
+      "assertions": {
+        "customer_name": "GRIFOLS MOVACO, S.A.",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "FR",
+      "file": "FR01_STMT_BRIM_STATEMENT_EPREFRP0000267_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 6,
+      "assertions": {
+        "customer_name": "TEVA SANTE SAS",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "FR",
+      "file": "FR01_STMT_BRIM_STATEMENT_EPREFRP0000270_EN.PDF",
+      "min_invoices": 6,
+      "min_items": 10,
+      "assertions": {
+        "customer_name": "Infosys Limited",
+        "non_empty_tranche": true
+      }
+    },
+    {
       "country": "NL",
       "file": "NL11_STMT_BRIM_STATEMENT_EPRENLP0000515_EN.PDF",
       "min_invoices": 1,
@@ -257,6 +336,56 @@
             "contains": "30 days from date of invoice"
           }
         ]
+      }
+    },
+    {
+      "country": "GB",
+      "file": "GB01_STMT_BRIM_STATEMENT_EPREGBP0000533_EN.PDF",
+      "min_invoices": 3,
+      "min_items": 9,
+      "assertions": {
+        "customer_name": "Foot Locker U.K. Ltd",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "GB",
+      "file": "GB01_STMT_BRIM_STATEMENT_EPREGBP0000541_EN.PDF",
+      "min_invoices": 15,
+      "min_items": 18,
+      "assertions": {
+        "customer_name": "BDO LLP",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "IE",
+      "file": "IE01_STMT_BRIM_STATEMENT_EPREIEP0000220_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 5,
+      "assertions": {
+        "customer_name": "TEVA PHARMACEUTICALS IRELAND",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "IT",
+      "file": "IT01_STMT_BRIM_STATEMENT_EPREITP0000145_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 4,
+      "assertions": {
+        "customer_name": "TEVA ITALIA S.R.L.",
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "SE",
+      "file": "SE01_STMT_BRIM_STATEMENT_EPRESEP0000048_EN.PDF",
+      "min_invoices": 6,
+      "min_items": 7,
+      "assertions": {
+        "customer_name": "Infosys Technologies Sweden AB",
+        "non_empty_tranche": true
       }
     },
     {
