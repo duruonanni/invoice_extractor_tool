@@ -282,22 +282,27 @@ function renderCountrySection(code) {
 
 function renderStatement(stmt) {
   const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
+  const warningCount = stmt.vr.filter(check => check.sv === 'w').length;
   const customer = stmt.hd.custName || stmt.hd.custNum || 'Unknown';
   const period = stmt.hd.period || 'Unknown';
   const unmappedCount = stmt.unmS.length + stmt.unmD.length;
   const safeId = (`d_${stmt.hd.stmtNum || stmt.fileName}`).replace(/\W/g, '');
+  const statusClass = issueCount ? 'err' : warningCount ? 'warn' : 'ok';
   return `
-    <article class="statement-card">
+    <article class="statement-card ${statusClass}">
       <div class="tb">
-        <div>
-          <strong>${esc(stmt.hd.stmtNum || stmt.fileName)}</strong>
-          <span class="tb-meta">${esc(customer)}</span>
-          <span class="tb-meta">${esc(period)}</span>
-          <span class="tb-meta">${esc(stmt.hd.date || '')}</span>
-          <span class="tb-meta">${stmt.bs.length} ${t('invoices')}</span>
-          <span class="tb-meta">${stmt.li.length} ${t('items')}</span>
+        <div class="statement-main">
+          <div class="statement-num">${esc(stmt.hd.stmtNum || stmt.fileName)}</div>
+          <span class="statement-pill">${esc(stmt.country)} ${esc((CM[stmt.country] || CM.OTHER).label)}</span>
+          <div class="statement-meta">
+            <span class="tb-meta">${esc(customer)}</span>
+            <span class="tb-meta">${esc(period)}</span>
+            <span class="tb-meta">${esc(stmt.hd.date || '')}</span>
+            <span class="tb-meta">${stmt.bs.length} ${t('invoices')}</span>
+            <span class="tb-meta">${stmt.li.length} ${t('items')}</span>
+          </div>
         </div>
-        <div class="${issueCount ? 'tre' : 'tg'}">${issueCount} ${t('issues')}</div>
+        <div class="issue-badge ${statusClass}">${issueCount} ${t('issues')}</div>
       </div>
       ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
       ${renderComparisonTable(stmt)}
