@@ -168,6 +168,11 @@ function renderResults() {
     resultsEl.innerHTML = '<div class="ib w">No parsed statements.</div>';
     return;
   }
+  const statements = Object.values(analysisResults).flatMap(group => group.stmts);
+  const batchIssueCount = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length, 0);
+  const batchWarningCount = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'w').length, 0);
+  const batchUnmappedCount = statements.reduce((sum, stmt) => sum + stmt.unmS.length + stmt.unmD.length, 0);
+  const batchPriceGapCount = statements.reduce((sum, stmt) => sum + stmt.priceGapIssues.length, 0);
 
   cardsEl.innerHTML = countries.map((code, index) => {
     const group = analysisResults[code];
@@ -195,7 +200,14 @@ function renderResults() {
   }).join('');
 
   summaryWrapEl.style.display = 'block';
-  let html = `<div class="tabs"><button class="tab a" id="tab-hier" onclick="swTab('hier')">${t('hierarchy')}</button>`;
+  let html = renderBatchStatus({
+    statements: statements.length,
+    issues: batchIssueCount,
+    warnings: batchWarningCount,
+    unmapped: batchUnmappedCount,
+    priceGapIssues: batchPriceGapCount,
+  });
+  html += `<div class="tabs"><button class="tab a" id="tab-hier" onclick="swTab('hier')">${t('hierarchy')}</button>`;
   for (const code of countries) {
     html += `<button class="tab" id="tab-${esc(code)}" onclick="swTab('${esc(code)}');swC('${esc(code)}')">${esc(analysisResults[code].meta.flag)} ${esc(code)}</button>`;
   }
@@ -205,6 +217,36 @@ function renderResults() {
     html += `<div class="tp" id="tp-${esc(code)}">${renderCountrySection(code)}</div>`;
   }
   resultsEl.innerHTML = html;
+}
+
+function renderBatchStatus(summary) {
+  let kind = 'success';
+  let title = t('batch_pass_title');
+  let desc = t('batch_pass_desc');
+  let side = t('batch_ready');
+
+  if (summary.issues > 0 || summary.unmapped > 0 || summary.priceGapIssues > 0) {
+    kind = 'error';
+    title = t('batch_fail_title');
+    desc = t('batch_fail_desc');
+    side = t('batch_review');
+  } else if (summary.warnings > 0) {
+    kind = 'warning';
+    title = t('batch_warn_title');
+    desc = t('batch_warn_desc');
+    side = t('batch_review');
+  }
+
+  return `
+    <section class="bs ${kind}">
+      <div>
+        <div class="bs-title">${esc(title)}</div>
+        <div class="bs-desc">${esc(desc)}</div>
+        <div class="bs-meta">${summary.statements} ${t('stmts').toLowerCase()} · ${summary.issues} ${t('issues').toLowerCase()} · ${summary.unmapped} ${t('unmapped').toLowerCase()} · ${summary.priceGapIssues} price gap anomalies</div>
+      </div>
+      <div class="bs-side">${esc(side)}</div>
+    </section>
+  `;
 }
 
 function renderCountrySection(code) {

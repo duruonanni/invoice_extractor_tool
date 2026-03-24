@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.7';
+const VERSION='3.12.8';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -11,6 +11,14 @@ const I={
     export_btn:'Export Excel',
     clear_btn:'Clear All',
     results_by:'Results by Country / Region',
+    batch_ready:'Ready for export',
+    batch_review:'Review validation details below',
+    batch_pass_title:'All Checks Passed',
+    batch_pass_desc:'No validation issues were detected across this batch.',
+    batch_warn_title:'Validation Completed With Warnings',
+    batch_warn_desc:'The batch completed with warnings that should be reviewed.',
+    batch_fail_title:'Validation Issues Detected',
+    batch_fail_desc:'One or more statements require attention before export.',
     stmts:'Statements',
     invoices:'Invoices',
     items:'Line Items',
