@@ -494,7 +494,13 @@
       "min_items": 4,
       "assertions": {
         "customer_name": "TEVA ITALIA S.R.L.",
-        "non_empty_tranche": true
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100439281",
+            "contains": "90 days from date of invoice"
+          }
+        ]
       }
     },
     {

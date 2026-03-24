@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.30';
+const VERSION='3.12.31';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -197,7 +197,7 @@ function computeExportFilename(statements,date=new Date()){
 }
 
 function extractInvoiceMetadata(lines,country){
-  const supported=new Set(['CH','AT','NL','AU','TH','US','HK','SG','CA','NZ','PT','PH','GR','ES']);
+  const supported=new Set(['CH','AT','NL','AU','TH','US','HK','SG','CA','NZ','PT','PH','GR','ES','IT']);
   if(!supported.has(country))return new Map();
   const meta=new Map();
   let curInv='';
