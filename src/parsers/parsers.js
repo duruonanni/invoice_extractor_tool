@@ -919,10 +919,11 @@ function parseItemsIN(lines,fileName){
   function flushItemFromQty(ln,page){
     const m=ln.match(qtyRowRe);
     if(!m||!pidParts.length)return false;
-    const qty=pN(m[2]),up=pN(m[4]),charges=pN(m[5]),tax=pN(m[7])+pN(m[9])+pN(m[11])-pN(m[13]),total=pN(m[14]);
+    const qty=pN(m[2]),listedRate=pN(m[4]),charges=pN(m[5]),tax=pN(m[7])+pN(m[9])+pN(m[11])-pN(m[13]),total=pN(m[14]);
+    const up=qty?charges/qty:listedRate;
     const pid=pidParts.join('');
     const pname=merge(pendingDesc)||pid;
-    if(total>0)items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+    if(total>0)items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,listedRate,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
     pendingDesc=[];pidParts=[];
     return true;
   }

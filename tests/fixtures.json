@@ -536,10 +536,11 @@
       "file": "IN03_STMT_BRIM_STATEMENT_EPREINP0000737.PDF",
       "min_invoices": 1,
       "min_items": 7,
-      "max_failed_checks": 1,
+      "max_failed_checks": 0,
       "max_mismatches": 0,
       "assertions": {
-        "non_empty_tranche": true
+        "non_empty_tranche": true,
+        "price_gap_issues": 0
       }
     },
     {
@@ -550,7 +551,8 @@
       "max_failed_checks": 0,
       "max_mismatches": 0,
       "assertions": {
-        "non_empty_tranche": true
+        "non_empty_tranche": true,
+        "price_gap_issues": 0
       }
     },
     {
