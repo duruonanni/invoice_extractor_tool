@@ -365,7 +365,7 @@ function renderSummaryTable(stmt) {
   const rows = stmt.bs.map(row => `
     <tr>
       <td class="mono">${esc(row.inv)}</td>
-      ${hasPaymentTerm ? `<td>${esc(row.paymentTerm || '')}</td>` : ''}
+      ${hasPaymentTerm ? `<td class="payment-term-cell">${esc(row.paymentTerm || '')}</td>` : ''}
       <td class="tr mono">${fc(row.charges || 0, stmt.cur)}</td>
       <td class="tr mono">${fc(row.tax || 0, stmt.cur)}</td>
       ${hasFee ? `<td class="tr mono">${fc(row.crf || 0, stmt.cur)}</td><td class="tr mono">${fc(row.rdf || 0, stmt.cur)}</td>` : ''}
@@ -381,7 +381,7 @@ function renderSummaryTable(stmt) {
           <thead>
             <tr>
               <th>${t('invoice')}</th>
-              ${hasPaymentTerm ? `<th>${t('payment_term')}</th>` : ''}
+              ${hasPaymentTerm ? `<th class="payment-term-head">${t('payment_term')}</th>` : ''}
               <th class="tr">${t('charges')}</th>
               <th class="tr">${t('tax')}</th>
               ${hasFee ? '<th class="tr">CRF</th><th class="tr">RDF</th>' : ''}
