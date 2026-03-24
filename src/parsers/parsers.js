@@ -1,5 +1,5 @@
 function parseBillingSummaryGeneric(text){
-  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By|請求概要)/i.test(text);
+  const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By|請求概要|Resumen\s+de\s+facturación)/i.test(text);
   const res=[];let m;
   // US 5-col: inv $ charges $ tax $ CRF $ RDF $ total
   const usP=/(\d{7,12})\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/g;
@@ -71,6 +71,50 @@ function parseBillingSummaryGeneric(text){
   return res;
 }
 
+function parseBillingSummaryGR(lines){
+  const trancheRows=[];
+  let inSummary=false;
+  let pendingTranchePrefix='';
+  let pendingInvoiceRow=null;
+  for(let i=0;i<lines.length;i++){
+    const ln=(lines[i].text||'').trim();
+    if(/Billing\s*Summary/i.test(ln)){inSummary=true;continue;}
+    if(!inSummary)continue;
+    if(/^Payable on:/i.test(ln)||/^Payment Terms:/i.test(ln)||/^page \d+ of \d+/i.test(ln))break;
+    if(/^Tranche\s*ID\.\s*Tax\s*Invoice\s*No\./i.test(ln))continue;
+    const tranchePrefix=ln.match(/^(121\d+_GR_[A-Z0-9]+_M_)$/i);
+    if(tranchePrefix){
+      pendingTranchePrefix=tranchePrefix[1];
+      pendingInvoiceRow=null;
+      continue;
+    }
+    const invoiceRow=ln.match(/^(\d{7,12})\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)$/i);
+    if(invoiceRow){
+      pendingInvoiceRow={inv:invoiceRow[1],charges:pN(invoiceRow[2]),tax:pN(invoiceRow[3]),total:pN(invoiceRow[4])};
+      continue;
+    }
+    const trancheSuffix=ln.match(/^(\d{2}_\d{3})$/);
+    if(pendingTranchePrefix&&pendingInvoiceRow&&trancheSuffix){
+      trancheRows.push({...pendingInvoiceRow,tranche:`${pendingTranchePrefix}${trancheSuffix[1]}`});
+      pendingTranchePrefix='';
+      pendingInvoiceRow=null;
+      continue;
+    }
+  }
+  if(!trancheRows.length)return [];
+  const invoiceTotals=new Map();
+  for(const row of trancheRows){
+    if(!invoiceTotals.has(row.inv))invoiceTotals.set(row.inv,{inv:row.inv,charges:0,tax:0,total:0,crf:0,rdf:0});
+    const agg=invoiceTotals.get(row.inv);
+    agg.charges+=row.charges;
+    agg.tax+=row.tax;
+    agg.total+=row.total;
+  }
+  const out=[...invoiceTotals.values()];
+  out.trancheRows=trancheRows;
+  return out;
+}
+
 function parseBillingSummaryJP(lines){
   const res=[];
   let inSummary=false;
@@ -112,6 +156,7 @@ function parseBillingSummaryNL(lines){
 }
 
 function parseBillingSummary(text,lines,fileName,country){
+  if(country==='GR'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryGR(lines);
   if(country==='JP'&&/請求概要/.test(text))return parseBillingSummaryJP(lines);
   if(country==='NL'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryNL(lines);
   return parseBillingSummaryGeneric(text);
@@ -364,10 +409,10 @@ function parseItemsEMEA(lines,fileName){
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     // Invoice Number (or "Rechnungsnummer" for DE)
-    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Num茅ro\s*de\s*facture|Numero\s*fattura|Factuurnummer|N煤mero\s*de\s*factura|螒蟻喂胃渭蠈蟼\s*蟿喂渭慰位慰纬委慰蠀|For\s*Internal\s*Lenovo\s*Use)[:\s]*(\d{7,12})/i);
+    const im=ln.match(/(?:Invoice\s*Number|Rechnungsnummer|Num茅ro\s*de\s*facture|Numero\s*fattura|Factuurnummer|N煤mero\s*de\s*factura|N[uú]mero\s*de\s*factura|螒蟻喂胃渭蠈蟼\s*蟿喂渭慰位慰纬委慰蠀|For\s*Internal\s*Lenovo\s*Use)[:\s]*(\d{7,12})/i);
     if(im){curInv=im[1];continue}
     // Two-line invoice number
-    if(/Invoice\s*Number|Rechnungsnummer/i.test(ln)&&!/\d{7,12}/.test(ln)){
+    if(/Invoice\s*Number|Rechnungsnummer|N[uú]mero\s*de\s*factura/i.test(ln)&&!/\d{7,12}/.test(ln)){
       curTr='';
       for(let j=i+1;j<Math.min(i+4,lines.length);j++){
         const pk=lines[j].text.trim();
@@ -796,14 +841,24 @@ function parseItemsPH(lines,fileName){
 
 function parseItemsGR(lines,fileName){
   const items=[];let curInv='';const taxByInv=new Map();
-  const summaryRe=/^(\d{7,12})\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)$/i;
+  let inSummary=false,pendingTranchePrefix='',pendingInvoiceRow=null;
   const itemRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+TEM\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
   for(let i=0;i<lines.length;i++){
     const ln=String(lines[i].text||'').trim();
-    const sm=ln.match(summaryRe);
-    if(sm){
-      taxByInv.set(sm[1],{charges:pN(sm[2]),tax:pN(sm[3]),total:pN(sm[4])});
-      curInv=sm[1];
+    if(/Billing\s*Summary/i.test(ln)){inSummary=true;continue;}
+    if(inSummary){
+      if(/^Payable on:/i.test(ln)||/^Payment Terms:/i.test(ln)||/^page \d+ of \d+/i.test(ln)){inSummary=false;continue;}
+      if(/^Tranche\s*ID\.\s*Tax\s*Invoice\s*No\./i.test(ln))continue;
+      const tranchePrefix=ln.match(/^(121\d+_GR_[A-Z0-9]+_M_)$/i);
+      if(tranchePrefix){pendingTranchePrefix=tranchePrefix[1];pendingInvoiceRow=null;continue;}
+      const invoiceRow=ln.match(/^(\d{7,12})\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)\s+EUR\s*([\d,]+\.?\d*)$/i);
+      if(invoiceRow){pendingInvoiceRow={inv:invoiceRow[1],charges:pN(invoiceRow[2]),tax:pN(invoiceRow[3]),total:pN(invoiceRow[4])};continue;}
+      const trancheSuffix=ln.match(/^(\d{2}_\d{3})$/);
+      if(pendingTranchePrefix&&pendingInvoiceRow&&trancheSuffix){
+        const key=`${pendingInvoiceRow.inv}__${pendingTranchePrefix}${trancheSuffix[1]}`;
+        taxByInv.set(key,{...pendingInvoiceRow,tranche:`${pendingTranchePrefix}${trancheSuffix[1]}`});
+        pendingTranchePrefix='';pendingInvoiceRow=null;
+      }
       continue;
     }
     const invM=ln.match(/^(\d{7,12})\s+\d{8,}\s+\d{2}\/\d{2}\/\d{4}$/);
@@ -824,7 +879,8 @@ function parseItemsGR(lines,fileName){
   const byInv={};
   for(const item of items)(byInv[item.inv||'?']??=[]).push(item);
   for(const [inv,rows] of Object.entries(byInv)){
-    const summary=taxByInv.get(inv);
+    const summaries=[...taxByInv.values()].filter(row=>row.inv===inv);
+    const summary=summaries.reduce((acc,row)=>({charges:acc.charges+row.charges,tax:acc.tax+row.tax,total:acc.total+row.total}),{charges:0,tax:0,total:0});
     if(!summary||!summary.tax)continue;
     const chargeTotal=rows.reduce((s,row)=>s+row.charges,0);
     let assigned=0;
@@ -1265,12 +1321,23 @@ function parseStatement(lines,fileName){
   const cur=(CM[country]||CM.OTHER).cur;
   const hd=parseHeader(lines);
   let bs=parseBillingSummary(fullText,lines,fileName,country);
+  const trancheRows=Array.isArray(bs)&&Array.isArray(bs.trancheRows)?bs.trancheRows:[];
   const invoiceMeta=extractInvoiceMetadata(lines,country);
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
   const li=backfillLineItemTranches(parseItems(country,lines,fileName,knownInvs));  // Detail totals per invoice
   for(const item of li)Object.assign(item,computeLinePriceAudit(item,cur));
-  const trancheSummary=buildTrancheSummary(li);
+  let trancheSummary=buildTrancheSummary(li);
+  if(country==='GR'&&trancheRows.length){
+    trancheSummary=trancheRows.map(row=>({
+      tranche:row.tranche,
+      qty:0,
+      charges:row.charges,
+      invoiceCount:1,
+      invoiceNos:[row.inv],
+      lineItems:0,
+    }));
+  }
   const priceGapIssues=li.filter(item=>item.priceGapAnomaly);
   const dt={};
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}

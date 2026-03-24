@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.20';
+const VERSION='3.12.21';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -185,7 +185,7 @@ function computeExportFilename(statements,date=new Date()){
 }
 
 function extractInvoiceMetadata(lines,country){
-  const supported=new Set(['CH','AT','NL','AU','TH','US','HK','SG','CA','NZ','PT','PH','GR']);
+  const supported=new Set(['CH','AT','NL','AU','TH','US','HK','SG','CA','NZ','PT','PH','GR','ES']);
   if(!supported.has(country))return new Map();
   const meta=new Map();
   let curInv='';
@@ -218,7 +218,7 @@ function extractInvoiceMetadata(lines,country){
     if(inlineInv){
       curInv=inlineInv[1];
       ensure(curInv);
-    }else if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)){
+    }else if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)||/^N[uú]mero\s+de\s+factura\s+Fecha\s+de\s+Factura\s+N[uú]mero\s+de\s+Cliente/i.test(ln)){
       const nextInv=captureInvoiceAt(i);
       if(nextInv){
         curInv=nextInv;
@@ -226,7 +226,7 @@ function extractInvoiceMetadata(lines,country){
       }
     }
     if(!curInv)continue;
-    const pm=ln.match(/Payment\s*Terms?\s*:\s*(.+)$/i);
+    const pm=ln.match(/Payment\s*Terms?\s*:\s*(.+)$/i)||ln.match(/Condiciones\s+de\s+Pagos\s*:\s*(.+)$/i);
     if(pm){
       const term=normalizePaymentTerm(pm[1]);
       if(!term)continue;
@@ -340,6 +340,12 @@ function parseHeader(lines){
         if(sm&&!/^(Statement|Date|Customer)$/i.test(sm[1]))h.stmtNum=sm[1];
         const jm=ln.match(/明細書番号\s*([A-Z]{2,}\w{5,}|\d{6,})/);
         if(jm)h.stmtNum=jm[1];
+        const em=ln.match(/^([A-Z]{2,}\w{5,})\s+(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\s+(\d{6,})$/);
+        if(em&&/Fecha\s+estado\s+de\s+cuenta/i.test(lines[i-2]?.text||'')){
+          h.stmtNum=em[1];
+          if(!h.date)h.date=em[2];
+          if(!h.custNum)h.custNum=em[3];
+        }
       }
     }
     if(!h.date){
@@ -378,6 +384,8 @@ function parseHeader(lines){
     if(!h.period){
       const pm=ln.match(/請求対象期間\s*(.+)/);
       if(pm)h.period=pm[1].trim();
+      const esp=ln.match(/^(\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+\d{1,2}\/\d{1,2}\/\d{4})$/i);
+      if(esp&&/Periodo\s+de\s+validez/i.test(lines[i-1]?.text||''))h.period=esp[1].trim();
     }
     if(!h.custName){
       const soldToInline=ln.match(/Sold[\s-]*To:\s*(.+)$/i);
@@ -386,6 +394,11 @@ function parseHeader(lines){
       }else{
         const billToInline=ln.match(/Bill[\s-]*To:\s*(.+)$/i);
         if(billToInline&&isLikelyCustomerName(billToInline[1]))h.custName=normalizeCustomerName(billToInline[1]);
+        const buyerEs=(lines[i].text||'').match(/^Nombre y dirección del comprador$/i);
+        if(buyerEs){
+          const next=(lines[i+1]?.text||'').trim().split(/\s+Lenovo\b/)[0].trim();
+          if(isLikelyCustomerName(next))h.custName=normalizeCustomerName(next);
+        }
       }
     }
     if(!h.custName){
@@ -453,6 +466,15 @@ function parseHeader(lines){
     if(!m||!isLikelyCustomerName(m[1]))continue;
     const candidate=normalizeCustomerName(m[1]);
     if(!h.custName||customerNameScore(candidate)>customerNameScore(h.custName))h.custName=candidate;
+  }
+  if(!h.custName){
+    for(let i=0;i<lines.length;i++){
+      const ln=lines[i].text.trim();
+      if(/^Nombre y dirección del comprador$/i.test(ln)||/^Nombre y dirección de facturación/i.test(ln)){
+        const next=(lines[i+1]?.text||'').trim().split(/\s+Lenovo\b/)[0].trim();
+        if(isLikelyCustomerName(next)){h.custName=normalizeCustomerName(next);break;}
+      }
+    }
   }
   return h;
 }

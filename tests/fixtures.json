@@ -299,6 +299,24 @@
       }
     },
     {
+      "country": "ES",
+      "file": "ES01_STMT_BRIM_STATEMENT_EPREESP0000338_ES.PDF",
+      "min_invoices": 6,
+      "min_items": 6,
+      "max_failed_checks": 0,
+      "max_mismatches": 0,
+      "assertions": {
+        "customer_name": "GRIFOLS MOVACO, S.A.",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100430314",
+            "contains": "60 d"
+          }
+        ]
+      }
+    },
+    {
       "country": "FR",
       "file": "FR01_STMT_BRIM_STATEMENT_EPREFRP0000267_EN.PDF",
       "min_invoices": 1,
@@ -422,6 +440,25 @@
       "assertions": {
         "customer_name": "Foot Locker U.K. Ltd",
         "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "GR",
+      "file": "GR01_STMT_BRIM_STATEMENT_EPREGRP0000117_EL.PDF",
+      "min_invoices": 1,
+      "min_items": 9,
+      "max_failed_checks": 0,
+      "max_mismatches": 0,
+      "assertions": {
+        "customer_name": "Coca-Cola HBC Greece S.A.I.C",
+        "tranche_summary_contains": [
+          {
+            "tranche": "1218062484_GR_202601_M_48_005",
+            "charges": 2470.5,
+            "invoice_count": 1,
+            "invoice_contains": "100442694"
+          }
+        ]
       }
     },
     {
