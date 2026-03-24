@@ -605,6 +605,17 @@ function doExport() {
     'Price Gap Issues',
     'Issues'
   ]];
+  const billingRows = [[
+    'File',
+    'Country',
+    'Statement',
+    'Invoice',
+    'Charges',
+    'Tax',
+    'Total',
+    'CRF',
+    'RDF'
+  ]];
   const trancheRows = [[
     'File',
     'Country',
@@ -645,6 +656,19 @@ function doExport() {
       stmt.priceGapIssues.length,
       stmt.vr.filter(check => check.sv === 'f').length,
     ]);
+    for (const row of stmt.bs) {
+      billingRows.push([
+        stmt.fileName,
+        stmt.country,
+        stmt.hd.stmtNum,
+        row.inv || '',
+        row.charges ?? '',
+        row.tax ?? '',
+        row.total ?? '',
+        row.crf ?? '',
+        row.rdf ?? '',
+      ]);
+    }
     for (const tranche of stmt.trancheSummary) {
       trancheRows.push([
         stmt.fileName,
@@ -679,8 +703,9 @@ function doExport() {
   }
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billingRows), 'Billing Summary');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trancheRows), 'Tranche Summary');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Detail');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Detail Line Items');
   XLSX.writeFile(wb, computeExportFilename(statements));
 }
 
