@@ -99,6 +99,19 @@ function evaluateAssertions(statement, assertions = {}) {
     }
   }
 
+  if (Array.isArray(assertions.pname_not_contains)) {
+    for (const rule of assertions.pname_not_contains) {
+      const item = statement.li.find(entry => entry.pid === rule.pid);
+      if (!item) {
+        failures.push(`missing item for pid ${rule.pid}`);
+        continue;
+      }
+      if (String(item.pname || '').includes(rule.contains)) {
+        failures.push(`pid ${rule.pid} unexpectedly contains text "${rule.contains}" in pname`);
+      }
+    }
+  }
+
   if (assertions.customer_name) {
     if (String(statement.hd.custName || '').trim() !== assertions.customer_name) {
       failures.push(`customer_name expected "${assertions.customer_name}" got "${statement.hd.custName || ''}"`);

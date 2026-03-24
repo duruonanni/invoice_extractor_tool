@@ -451,6 +451,12 @@
       "max_mismatches": 0,
       "assertions": {
         "customer_name": "Coca-Cola HBC Greece S.A.I.C",
+        "pname_not_contains": [
+          {
+            "pid": "WBD0A89781",
+            "contains": "Σε περίπτωση"
+          }
+        ],
         "tranche_summary_contains": [
           {
             "tranche": "1218062484_GR_202601_M_48_005",

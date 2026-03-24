@@ -843,6 +843,7 @@ function parseItemsGR(lines,fileName){
   const items=[];let curInv='';const taxByInv=new Map();
   let inSummary=false,pendingTranchePrefix='',pendingInvoiceRow=null;
   const itemRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+TEM\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  const footerRe=/^(ΣΥΝΟΛΟ|Σε περίπτωση|εξόφλησης|επιβληθούν|υπερημερίας\.|ΣΧΕΤΙΚΑ ΠΑΡΑΣΤΑΤΙΚΑ|ΠΛΗΡΩΜΗ|Μ\.Αρ\.Κ\.|Υ\.ΠΑ\.Η\.Ε\.Σ|Αριθμός Αδειοδότησης|Ο ΕΚΔΟΤΗΣ|The invoice is payable|currency\.|page \d+ of \d+)/i;
   for(let i=0;i<lines.length;i++){
     const ln=String(lines[i].text||'').trim();
     if(/Billing\s*Summary/i.test(ln)){inSummary=true;continue;}
@@ -871,7 +872,7 @@ function parseItemsGR(lines,fileName){
     if(items.length){
       const suffix=ln.trim();
       const last=items[items.length-1];
-      if(last.srcPage===lines[i].page&&suffix&&!/^WBD/i.test(suffix)&&!/^(ΣΥΝΟΛΟ|Σε περίπτωση|The invoice|ΠΛΗΡΩΜΗ|page \d+ of \d+)/i.test(suffix)&&!/^\d/.test(suffix)){
+      if(last.srcPage===lines[i].page&&suffix&&!/^WBD/i.test(suffix)&&!footerRe.test(suffix)&&!/^\d/.test(suffix)&&!/[Α-Ωα-ω]/.test(suffix)){
         last.pname=`${last.pname} ${suffix}`.trim();
       }
     }
