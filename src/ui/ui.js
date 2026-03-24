@@ -182,7 +182,7 @@ function renderResults() {
       0
     );
     return `
-      <div class="gc ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="swC('${esc(code)}')">
+      <div class="gc ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="focusCountry('${esc(code)}')">
         <div class="gc-f">${esc(group.meta.flag)}</div>
         <div class="gc-n">${esc(group.meta.label)} (${esc(code)})</div>
         <div class="gc-r"><span>${t('stmts')}</span><span class="gc-v">${group.stmts.length}</span></div>
@@ -508,6 +508,13 @@ function swC(code) {
   document.getElementById(`gc-${code}`)?.classList.add('a');
 }
 
+function focusCountry(code) {
+  swC(code);
+  swTab(code);
+  const target = document.getElementById(`tp-${code}`) || document.getElementById(`tab-${code}`) || resultsEl;
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function swTab(id) {
   document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('a'));
   document.getElementById(`tab-${id}`)?.classList.add('a');
@@ -533,6 +540,7 @@ function fD(safeId, invoice, btn) {
 }
 
 window.swC = swC;
+window.focusCountry = focusCountry;
 window.swTab = swTab;
 window.swSub = swSub;
 window.fD = fD;
