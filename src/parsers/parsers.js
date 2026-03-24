@@ -155,9 +155,54 @@ function parseBillingSummaryNL(lines){
   return res;
 }
 
+function parseBillingSummaryKR(lines){
+  const res=[];
+  let inSummary=false;
+  for(let i=0;i<lines.length;i++){
+    const ln=(lines[i].text||'').trim();
+    if(/빌링요약/.test(ln)){inSummary=true;continue;}
+    if(!inSummary)continue;
+    if(/세금계산서번호/.test(ln)&&/청구/.test(ln)&&/부가가치세/.test(ln)&&/합계/.test(ln))continue;
+    if(/^(세금계산서번호|청구|부가가치세|합계)$/.test(ln))continue;
+    if(/^비고[:：]?/.test(ln)||/^page \d+ of \d+/i.test(ln))break;
+    const rowMatch=ln.match(/^(\d{7,12})\s+(?:KRW|\$)\s*([\d,]+(?:\.\d+)?)\s+(?:KRW|\$)\s*([\d,]+(?:\.\d+)?)\s+(?:KRW|\$)\s*([\d,]+(?:\.\d+)?)$/i);
+    if(rowMatch){
+      res.push({
+        inv:rowMatch[1],
+        charges:pN(rowMatch[2]),
+        tax:pN(rowMatch[3]),
+        total:pN(rowMatch[4]),
+        crf:0,
+        rdf:0,
+      });
+      continue;
+    }
+    const invoiceMatch=ln.match(/^(\d{7,12})$/);
+    if(!invoiceMatch)continue;
+    const charges=(lines[i+1]?.text||'').trim();
+    const tax=(lines[i+2]?.text||'').trim();
+    const total=(lines[i+3]?.text||'').trim();
+    const moneyRe=/^(?:[₩￦]|KRW|\$)\s*([\d,]+(?:\.\d+)?)$/i;
+    const cm=charges.match(moneyRe),tm=tax.match(moneyRe),totm=total.match(moneyRe);
+    if(cm&&tm&&totm){
+      res.push({
+        inv:invoiceMatch[1],
+        charges:pN(cm[1]),
+        tax:pN(tm[1]),
+        total:pN(totm[1]),
+        crf:0,
+        rdf:0,
+      });
+      i+=3;
+    }
+  }
+  return res;
+}
+
 function parseBillingSummary(text,lines,fileName,country){
   if(country==='GR'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryGR(lines);
   if(country==='JP'&&/請求概要/.test(text))return parseBillingSummaryJP(lines);
+  if(country==='KR'&&/빌링요약/.test(text))return parseBillingSummaryKR(lines);
   if(country==='NL'&&/Billing\s*Summary/i.test(text))return parseBillingSummaryNL(lines);
   return parseBillingSummaryGeneric(text);
 }
