@@ -1,4 +1,4 @@
-# Lenovo DaaS Invoice Validator
+# Lenovo EaaS Invoice Validator
 User Manual (Quick Guide)
 
 Version: v3.12.3  
@@ -7,7 +7,7 @@ Last updated: 2026-03-18
 ---
 
 ## Purpose
-This tool validates Lenovo DaaS invoice PDFs by comparing:
+This tool validates Lenovo EaaS invoice PDFs by comparing:
 - Billing Summary totals
 - Detail line item totals
 - Per‑invoice consistency checks (missing items, mismatched totals, invalid formats)

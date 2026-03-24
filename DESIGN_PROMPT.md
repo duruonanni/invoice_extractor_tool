@@ -1,7 +1,7 @@
-﻿# Lenovo DaaS Invoice Validator - Design Prompt
+﻿# Lenovo EaaS Invoice Validator - Design Prompt
 
 ## Product Goal
-Build a single-file, offline-capable HTML tool that validates Lenovo DaaS invoice statement PDFs across multiple Sales Orgs.
+Build a single-file, offline-capable HTML tool that validates Lenovo EaaS invoice statement PDFs across multiple Sales Orgs.
 
 The tool should:
 - accept one or multiple PDF files via click upload or drag-and-drop
