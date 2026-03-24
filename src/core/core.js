@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.25';
+const VERSION='3.12.26';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -50,6 +50,8 @@ const I={
     expected_charges:'Expected Charges',
     price_gap:'Price Gap',
     gap_status:'Gap Status',
+    arithmetic:'Arithmetic',
+    arithmetic_diff:'Arithmetic Diff',
     product:'Product',
     name:'Name',
     tranche:'Tranche',

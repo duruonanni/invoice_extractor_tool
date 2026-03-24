@@ -405,6 +405,7 @@ function renderComparisonTable(stmt) {
 function renderSummaryTable(stmt) {
   const hasFee = stmt.bs.some(row => row.crf || row.rdf);
   const hasPaymentTerm = stmt.bs.some(row => String(row.paymentTerm || '').trim());
+  const hasArithmetic = stmt.bs.some(row => row.arithmeticStatus || row.arithmeticDiff !== undefined);
   const rows = stmt.bs.map(row => `
     <tr>
       <td class="mono">${esc(row.inv)}</td>
@@ -413,6 +414,7 @@ function renderSummaryTable(stmt) {
       <td class="tr mono">${fc(row.tax || 0, stmt.cur)}</td>
       ${hasFee ? `<td class="tr mono">${fc(row.crf || 0, stmt.cur)}</td><td class="tr mono">${fc(row.rdf || 0, stmt.cur)}</td>` : ''}
       <td class="tr mono">${fc(row.total || 0, stmt.cur)}</td>
+      ${hasArithmetic ? `<td class="tc ${row.arithmeticPass ? 'cell-pass' : 'cell-fail'}">${esc(row.arithmeticStatus || '')}</td><td class="tr mono ${row.arithmeticPass ? 'cell-pass' : 'cell-fail'}">${fc(row.arithmeticDiff || 0, stmt.cur)}</td>` : ''}
     </tr>
   `).join('');
 
@@ -429,6 +431,7 @@ function renderSummaryTable(stmt) {
               <th class="tr">${t('tax')}</th>
               ${hasFee ? '<th class="tr">CRF</th><th class="tr">RDF</th>' : ''}
               <th class="tr">${t('total')}</th>
+              ${hasArithmetic ? `<th class="tc">${t('arithmetic')}</th><th class="tr">${t('arithmetic_diff')}</th>` : ''}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -660,6 +663,8 @@ function doExport() {
     'Charges',
     'Tax',
     'Total',
+    'Arithmetic',
+    'Arithmetic Diff',
     'CRF',
     'RDF'
   ]];
@@ -713,6 +718,8 @@ function doExport() {
         row.charges ?? '',
         row.tax ?? '',
         row.total ?? '',
+        row.arithmeticStatus || '',
+        row.arithmeticDiff ?? '',
         row.crf ?? '',
         row.rdf ?? '',
       ]);

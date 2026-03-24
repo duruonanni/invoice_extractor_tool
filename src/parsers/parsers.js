@@ -1347,6 +1347,18 @@ function parseStatement(lines,fileName){
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
   }
   bs=bs.map(row=>({...row,...(invoiceMeta.get(row.inv)||{})}));
+  bs=bs.map(row=>{
+    const arithmeticTotal=(row.charges||0)+(row.tax||0)+(row.crf||0)+(row.rdf||0);
+    const arithmeticDiff=Math.abs(arithmeticTotal-(row.total||0));
+    const arithmeticOk=arithmeticDiff<1;
+    return{
+      ...row,
+      arithmeticExpectedTotal:arithmeticTotal,
+      arithmeticDiff,
+      arithmeticStatus:arithmeticOk?'OK':'ERR',
+      arithmeticPass:arithmeticOk,
+    };
+  });
   const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
   const sT=bs.reduce((a,r)=>{a.charges+=r.charges||0;a.tax+=r.tax||0;a.total+=r.total||0;a.crfRdf+=(r.crf||0)+(r.rdf||0);return a;},{charges:0,tax:0,total:0,crfRdf:0});
   // Comparison + unmapped
@@ -1378,7 +1390,7 @@ function parseStatement(lines,fileName){
   vr.push({nm:'Grand Total - Total',p:td<1,sv:td<1?'p':(noD?'w':'f'),dt:`Sum: ${fc(sTotAdj,cur)} | Det: ${fc(dGT.total,cur)} | Diff: ${fc(td,cur)}`});
   if(unmS.length)vr.push({nm:`Detail pages missing (${unmS.length} invoice${unmS.length>1?'s':''})`,p:false,sv:'f',dt:unmS.join(', ')});
   if(unmD.length)vr.push({nm:`${unmD.length} inv in Detail only`,p:false,sv:'f',dt:unmD.join(', ')});
-  for(const r of bs){const c=r.charges+r.tax+(r.crf||0)+(r.rdf||0),d=Math.abs(c-r.total);
+  for(const r of bs){const c=r.arithmeticExpectedTotal,d=r.arithmeticDiff;
     vr.push({nm:`Inv ${r.inv}: arithmetic`,p:d<1,sv:d<1?'p':'f',dt:`${fc(r.charges,cur)} + ${fc(r.tax,cur)} = ${fc(c,cur)} vs ${fc(r.total,cur)} | Diff: ${fc(d,cur)}`})}
   for(const c of comp.filter(x=>x.st==='matched'&&!x.m))
     vr.push({nm:`Inv ${c.inv}: mismatch`,p:false,sv:'f',dt:`Diff charges=${fc(c.dC_,cur)} | tax=${fc(c.dT_,cur)} | total=${fc(c.dTot_,cur)}`});
