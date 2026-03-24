@@ -99,6 +99,24 @@
       }
     },
     {
+      "country": "AT",
+      "file": "AT01_STMT_BRIM_STATEMENT_EPREATP0000194_EN.PDF",
+      "min_invoices": 1,
+      "min_items": 3,
+      "max_failed_checks": 0,
+      "max_mismatches": 0,
+      "assertions": {
+        "customer_name": "Coca-Cola HBC Austria GmbH",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100442695",
+            "contains": "60 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
       "country": "BE",
       "file": "BE01_STMT_BRIM_STATEMENT_EPREBEP0000075_EN.PDF",
       "min_invoices": 5,
