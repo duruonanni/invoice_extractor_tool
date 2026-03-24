@@ -2,6 +2,15 @@
   "base_dir": "Input/Approved_Preview_Invoice",
   "cases": [
     {
+      "country": "AU",
+      "file": "AU04_STMT_BRIM_STATEMENT_EPREAUP0000931.PDF",
+      "min_invoices": 1,
+      "min_items": 1,
+      "assertions": {
+        "customer_name": "Mid-Coast Council"
+      }
+    },
+    {
       "country": "AT",
       "file": "AT01_STMT_BRIM_STATEMENT_EPREATP0000192_EN.PDF",
       "min_invoices": 31,

@@ -99,6 +99,12 @@ function evaluateAssertions(statement, assertions = {}) {
     }
   }
 
+  if (assertions.customer_name) {
+    if (String(statement.hd.custName || '').trim() !== assertions.customer_name) {
+      failures.push(`customer_name expected "${assertions.customer_name}" got "${statement.hd.custName || ''}"`);
+    }
+  }
+
   if (Array.isArray(assertions.tranche_summary_contains)) {
     for (const rule of assertions.tranche_summary_contains) {
       const row = statement.trancheSummary.find(entry => entry.tranche === rule.tranche);

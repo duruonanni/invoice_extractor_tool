@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.9';
+const VERSION='3.12.10';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -230,6 +230,17 @@ function detectCountry(text,fn){
 
 function parseHeader(lines){
   const h={stmtNum:'',date:'',custName:'',custNum:'',period:''};
+  function isLikelyCustomerName(value){
+    const v=String(value||'').trim();
+    if(!v)return false;
+    if(/^(Lenovo\s+\(India\)|Lenovo\s+Global\s+Technology\s+India)/i.test(v))return false;
+    if(/^\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}$/.test(v))return false;
+    if(/^\d+$/.test(v))return false;
+    if(/^[A-Z]{2}$/.test(v))return false;
+    if(/^\d{5,}/.test(v))return false;
+    if(/Street|Dr |Ave |Road|Rd |NSW\s+\d{4}|VIC\s+\d{4}|QLD\s+\d{4}|WA\s+\d{4}|SA\s+\d{4}|TAS\s+\d{4}|ACT\s+\d{4}|NT\s+\d{4}/i.test(v))return false;
+    return true;
+  }
   for(let i=0;i<lines.length;i++){
     const ln=lines[i].text;
     if(!h.stmtNum){
@@ -287,6 +298,15 @@ function parseHeader(lines){
       if(pm)h.period=pm[1].trim();
     }
     if(!h.custName){
+      const soldToInline=ln.match(/Sold[\s-]*To:\s*(.+)$/i);
+      if(soldToInline&&isLikelyCustomerName(soldToInline[1])){
+        h.custName=soldToInline[1].trim();
+      }else{
+        const billToInline=ln.match(/Bill[\s-]*To:\s*(.+)$/i);
+        if(billToInline&&isLikelyCustomerName(billToInline[1]))h.custName=billToInline[1].trim();
+      }
+    }
+    if(!h.custName){
       const nm=ln.match(/Name:\s*(.+?)(?:\s+Natural\s+of\s+Statement:|\s+Date\s+of\s+Statement:|$)/i);
       if(nm){
         let name=nm[1].trim();
@@ -295,7 +315,7 @@ function parseHeader(lines){
         if(nextName&&nextName[1]&&!/^(Address|State|Remark|PO)$/i.test(nextName[1])){
           name=`${name} ${nextName[1].trim()}`.replace(/\s+/g,' ');
         }
-        if(name&&!/^(Lenovo\s+\(India\)|Lenovo\s+Global\s+Technology\s+India)/i.test(name))h.custName=name;
+        if(isLikelyCustomerName(name))h.custName=name;
       }else{
         const jm=ln.match(/お客様名\s*(.+)/);
         if(jm)h.custName=jm[1].trim();
@@ -314,15 +334,15 @@ function parseHeader(lines){
       break;
     }
   }
-  for(let i=0;i<Math.min(lines.length,30);i++){
+  if(!h.custName)for(let i=0;i<Math.min(lines.length,30);i++){
     if(/Sold[\s-]*To/i.test(lines[i].text)){
       for(let j=i+1;j<Math.min(i+6,lines.length);j++){
         const cl=lines[j].text.trim();
-        if(cl&&!/^\d+$/.test(cl)&&!/^[A-Z]{2}$/.test(cl)&&cl.length>3&&!/^\d{5,}/.test(cl)&&!/Street|Dr |Ave |Road|Rd /i.test(cl)){h.custName=cl;break}
+        if(isLikelyCustomerName(cl)){h.custName=cl;break}
       }
       break;
     }
   }
-  if(!h.custName)for(const{text:ln}of lines){const m=ln.match(/Customer\s*Name[:\s]*(.+)/i);if(m){h.custName=m[1].trim();break}}
+  if(!h.custName)for(const{text:ln}of lines){const m=ln.match(/Customer\s*Name[:\s]*(.+)/i);if(m&&isLikelyCustomerName(m[1])){h.custName=m[1].trim();break}}
   return h;
 }
