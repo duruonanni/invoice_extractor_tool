@@ -1,12 +1,12 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.32';
+const VERSION='3.12.33';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
   en:{
     title:'Lenovo EaaS Invoice Validator',
     drop_title:'Drop Lenovo EaaS invoice PDFs here, or click to select',
-    drop_sub:'Supports 31 Sales Orgs (AT/AU/BE/CA/CH/DE/ES/FR/GB/GR/HK/IE/IN/IT/JP/KR/MY/NL/NZ/PH/PT/SE/SG/TH/US) - Multiple files allowed',
+    drop_sub:'Supports 31 Sales Orgs across 25 countries (AT/AU/BE/CA/CH/DE/ES/FR/GB/GR/HK/IE/IN/IT/JP/KR/MY/NL/NZ/PH/PT/SE/SG/TH/US) - Multiple files allowed',
     run_btn:'Run Verification',
     export_btn:'Export Excel',
     clear_btn:'Clear All',
