@@ -499,8 +499,8 @@ function renderDetailTable(stmt, safeId) {
     <details>
       <summary>${t('detail_items')} (${stmt.li.length})</summary>
       <div class="filter-row">
-        ${invoices.map((inv, index) => `<button class="btn btn-s ${index === 0 ? 'a' : ''}" onclick="fD('${safeId}','${esc(inv)}',this)">${esc(inv)}</button>`).join('')}
-        <button class="btn btn-s" onclick="fD('${safeId}','ALL',this)">All</button>
+        <button class="btn btn-s a" onclick="fD('${safeId}','ALL',this)">All</button>
+        ${invoices.map(inv => `<button class="btn btn-s" onclick="fD('${safeId}','${esc(inv)}',this)">${esc(inv)}</button>`).join('')}
       </div>
       <div class="tw">
         <table id="${safeId}">
