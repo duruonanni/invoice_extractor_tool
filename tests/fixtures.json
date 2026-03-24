@@ -129,6 +129,16 @@
       }
     },
     {
+      "country": "CA",
+      "file": "CA01_STMT_BRIM_STATEMENT_EPRECAP0000073.PDF",
+      "min_invoices": 4,
+      "min_items": 4,
+      "assertions": {
+        "customer_name": "HCL CANADA INC.",
+        "non_empty_tranche": true
+      }
+    },
+    {
       "country": "JP",
       "file": "JP01_STMT_BRIM_STATEMENT_EPREJPP0000568_JA.PDF",
       "min_invoices": 7,
@@ -317,6 +327,54 @@
         "invoice_payment_terms": [
           {
             "inv": "100441553",
+            "contains": "60 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
+      "country": "NZ",
+      "file": "NZ01_STMT_BRIM_STATEMENT_EPRENZP0000035.PDF",
+      "min_invoices": 8,
+      "min_items": 50,
+      "assertions": {
+        "customer_name": "Bluebird Foods Limited",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100440549",
+            "contains": "60 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
+      "country": "PH",
+      "file": "PH02_STMT_BRIM_STATEMENT_EPREPHP0000417.PDF",
+      "min_invoices": 1,
+      "min_items": 2,
+      "assertions": {
+        "customer_name": "PCCW Solutions Philippines Inc.",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100439290",
+            "contains": "45 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
+      "country": "PT",
+      "file": "PT01_STMT_BRIM_STATEMENT_EPREPTP0000122_EN.PDF",
+      "min_invoices": 6,
+      "min_items": 14,
+      "assertions": {
+        "customer_name": "INFOSYS LIMITED SUCURSAL EM PORTUGAL",
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100441620",
             "contains": "60 days from date of invoice"
           }
         ]
