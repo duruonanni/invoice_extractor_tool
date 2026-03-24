@@ -282,7 +282,7 @@ function renderBatchStatus(summary) {
       <div>
         <div class="bs-title">${esc(title)}</div>
         <div class="bs-desc">${esc(desc)}</div>
-        <div class="bs-meta">${summary.statements} ${t('stmts').toLowerCase()} · ${summary.issues} ${t('issues').toLowerCase()} · ${summary.unmapped} ${t('unmapped').toLowerCase()} · ${summary.priceGapIssues} price gap anomalies</div>
+        <div class="bs-meta">${summary.statements} ${t('stmts').toLowerCase()} · ${summary.issues} ${t('errors').toLowerCase()} · ${summary.warnings} ${t('warnings').toLowerCase()} · ${summary.unmapped} ${t('unmapped').toLowerCase()} · ${summary.priceGapIssues} price gap anomalies</div>
       </div>
       <div class="bs-side">${esc(side)}</div>
     </section>
@@ -342,7 +342,10 @@ function renderStatement(stmt) {
             <span class="tb-meta">${stmt.li.length} ${t('items')}</span>
           </div>
         </div>
-        <div class="issue-badge ${statusClass}">${issueCount} ${t('issues')}</div>
+        <div class="issue-stack">
+          <div class="issue-badge ${issueCount ? 'err' : 'neutral'}">${issueCount} ${t('errors')}</div>
+          <div class="issue-badge ${warningCount ? 'warn' : 'neutral'}">${warningCount} ${t('warnings')}</div>
+        </div>
       </div>
       ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
       ${renderComparisonTable(stmt)}
@@ -442,7 +445,7 @@ function renderTrancheSummaryTable(stmt) {
       <td class="tr mono">${row.qty ?? ''}</td>
       <td class="tr mono">${fc(row.charges || 0, stmt.cur)}</td>
       <td class="tr mono">${row.invoiceCount}</td>
-      <td class="wrap">${esc(row.invoiceNos.join(', '))}</td>
+      <td class="wrap tc mono">${esc(row.invoiceNos.join(', '))}</td>
     </tr>
   `).join('');
 
@@ -457,7 +460,7 @@ function renderTrancheSummaryTable(stmt) {
               <th class="tr">${t('qty')}</th>
               <th class="tr">${t('charges')}</th>
               <th class="tr">${t('invoice_count')}</th>
-              <th>${t('invoice_nos')}</th>
+              <th class="tc">${t('invoice_nos')}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

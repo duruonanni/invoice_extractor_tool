@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.24';
+const VERSION='3.12.25';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -24,6 +24,8 @@ const I={
     items:'Line Items',
     unmapped:'Unmapped',
     issues:'Issues',
+    errors:'Errors',
+    warnings:'Warnings',
     matched:'Matched',
     sum_only:'Detail Pages Missing',
     det_only:'Detail Only',
@@ -52,7 +54,7 @@ const I={
     name:'Name',
     tranche:'Tranche',
     payment_term:'Payment Term',
-    invoice_nos:'Invoice Nos',
+    invoice_nos:'Invoice Number',
     invoice_count:'Invoice Count',
     file:'File',
     page:'Page',
