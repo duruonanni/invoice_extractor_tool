@@ -429,6 +429,7 @@ function renderDetailTable(stmt, safeId) {
   const hasCrf = stmt.li.some(item => item.crfRdf);
   const rows = stmt.li.map(item => `
     <tr data-inv="${esc(item.inv)}" class="${item.priceGapAnomaly ? 'ra' : ''}">
+      <td>${esc(item.srcFile || '')}</td>
       <td class="mono">${esc(item.inv)}</td>
       <td class="mono">${esc(item.tranche || '')}</td>
       <td class="mono">${esc(item.pid || '')}</td>
@@ -442,7 +443,6 @@ function renderDetailTable(stmt, safeId) {
       <td class="tr mono">${fc(item.tax || 0, stmt.cur)}</td>
       ${hasCrf ? `<td class="tr mono">${fc(item.crfRdf || 0, stmt.cur)}</td>` : ''}
       <td class="tr mono">${fc(item.total || 0, stmt.cur)}</td>
-      <td>${esc(item.srcFile || '')}</td>
       <td class="tr mono">${item.srcPage || ''}</td>
     </tr>
   `).join('');
@@ -458,6 +458,7 @@ function renderDetailTable(stmt, safeId) {
         <table id="${safeId}">
           <thead>
             <tr>
+              <th>${t('file')}</th>
               <th>${t('invoice')}</th>
               <th>${t('tranche')}</th>
               <th>${t('product')}</th>
@@ -471,7 +472,6 @@ function renderDetailTable(stmt, safeId) {
               <th class="tr">${t('tax')}</th>
               ${hasCrf ? '<th class="tr">CRF/RDF</th>' : ''}
               <th class="tr">${t('total')}</th>
-              <th>${t('file')}</th>
               <th class="tr">${t('page')}</th>
             </tr>
           </thead>

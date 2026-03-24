@@ -7,7 +7,25 @@
       "min_invoices": 1,
       "min_items": 1,
       "assertions": {
-        "customer_name": "Mid-Coast Council"
+        "customer_name": "Mid-Coast Council",
+        "pname_contains": [
+          {
+            "pid": "WBD0A00112",
+            "contains": "ThinkCentreM90q-1-i5-10500T- 8GB - 256GB"
+          },
+          {
+            "pid": "WBD0A00113",
+            "contains": "ThinkCentreM90a -i5-10500 - 8GB - 256GB"
+          },
+          {
+            "pid": "WBD0A77185",
+            "contains": "NB TP T14 AMD G5 R7_PRO 32G 256G 11P"
+          },
+          {
+            "pid": "WBD0A77186",
+            "contains": "NB TP T16 AMD G4 AI_R7 32G 256G 11P"
+          }
+        ]
       }
     },
     {

@@ -213,6 +213,7 @@ function parseItemsUS(lines,fileName){
   const items=[];let curInv='',curTr='';
   // General product ID: WBD... or alphanumeric+underscore
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)\b/i;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
   // Full pattern: product name (must start with letter) + qty + $up + $ch + $tax + $crf + $tot
   const reFull=/([A-Za-z].+?)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/;
@@ -908,6 +909,7 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   if(country==='TH')for(const{text:ln,page}of lines){if(/CUSTOMER\s+COPY|BILLING\s+COPY/i.test(ln))skipPages.add(page);}
   // General product ID: WBD... or alphanumeric+underscore
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)\b/i;
   const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
   // Currency patterns support $, RM, or no symbol.
   const curSym='(?:\\$|RM)';
@@ -921,6 +923,40 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   const reNoTax=new RegExp('(.+?)\\s+([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)\\s+'+curSym+'\\s*([\\d,]+\\.?\\d*)');
   // PH plain no-tax: pname qty up charges total (4 numbers, no symbol, no tax column)
   const rePhNoTax=/(.+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/;
+  const detailStopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Summary:|Product ID Product Name|Subscription Service Detail|Invoice Number:|Invoice Date:|Sold To:|Bill To:|Ship To:|Payment Term:|Due Date:|Billed on Statement:|Reference Invoice Number:|Recurring Charge Period:|For questions about your invoice|Tel:|Email:|page \d+ of \d+|TAX INVOICE)/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function collectNoNamePrefix(startIdx){
+    const parts=[];
+    for(let j=startIdx-1;j>=Math.max(0,startIdx-2);j--){
+      const prev=clean(lines[j].text);
+      if(!prev)continue;
+      if(/^\d/.test(prev))continue;
+      if(detailStopRe.test(prev)||sectRe.test(prev)||strictPidRe.test(prev)||/\d+\s*%\s*$/.test(prev)||/^\d[\d,.\s$RM%-]*$/.test(prev))break;
+      parts.unshift(prev);
+    }
+    return parts;
+  }
+  function collectNoNameSuffix(startIdx){
+    const parts=[];
+    for(let j=startIdx+1;j<=Math.min(lines.length-1,startIdx+2);j++){
+      const next=clean(lines[j].text);
+      if(!next)continue;
+      if(detailStopRe.test(next)||sectRe.test(next)||strictPidRe.test(next)||/^\d{7,12}\b/.test(next)||/^\$/.test(next)||/^[\d,.\s$RM%-]+$/.test(next))break;
+      if(!/^\d/.test(next))break;
+      parts.push(next);
+    }
+    return parts;
+  }
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     if(skipPages.has(page))continue;
@@ -950,7 +986,10 @@ function parseItemsGen(lines,fileName,knownInvs,country){
     if(m&&pN(m[7])>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:pN(m[6]),total:pN(m[7]),taxRate:pN(m[5]),crfRdf:0,srcFile:fileName,srcPage:page});continue;}
     // No-name with $ (AU/HK pattern)
     m=reNN.exec(after);
-    if(m&&pN(m[6])>0){items.push({inv:curInv,tranche:curTr,pid,pname:'',qty:pN(m[1]),up:pN(m[2]),charges:pN(m[3]),tax:pN(m[5]),total:pN(m[6]),taxRate:pN(m[4]),crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+    if(m&&pN(m[6])>0){
+      const pname=merge([...collectNoNamePrefix(i),...collectNoNameSuffix(i)]);
+      items.push({inv:curInv,tranche:curTr,pid,pname,qty:pN(m[1]),up:pN(m[2]),charges:pN(m[3]),tax:pN(m[5]),total:pN(m[6]),taxRate:pN(m[4]),crfRdf:0,srcFile:fileName,srcPage:page});continue;
+    }
     // No-tax with RM/$ (MY pattern): qty CUR up CUR charges CUR total
     m=reNoTax.exec(after);
     if(m&&pN(m[5])>0&&!/%/.test(after)){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:0,total:pN(m[5]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
