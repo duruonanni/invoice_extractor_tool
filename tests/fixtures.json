@@ -35,6 +35,21 @@
       }
     },
     {
+      "country": "AU",
+      "file": "AU04_STMT_BRIM_STATEMENT_EPREAUP0000935.PDF",
+      "min_invoices": 2,
+      "min_items": 6,
+      "assertions": {
+        "customer_name": "Motorola Mobility Australia Pty Ltd",
+        "invoice_payment_terms": [
+          {
+            "inv": "100439216",
+            "contains": "30 days from date of invoice"
+          }
+        ]
+      }
+    },
+    {
       "country": "AT",
       "file": "AT01_STMT_BRIM_STATEMENT_EPREATP0000192_EN.PDF",
       "min_invoices": 31,

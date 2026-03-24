@@ -568,6 +568,77 @@ function parseItemsTH(lines,fileName){
   return items;
 }
 
+function parseItemsAU(lines,fileName){
+  const items=[];let curInv='',curTr='';
+  const pidRe=/^(WBD[A-Z0-9]+)\b/i;
+  const trancheValueRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
+  const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Summary:|Product ID Product Name|Subscription Service Detail|Invoice Number:|Invoice Date:|Sold To:|Bill To:|Ship To:|Payment Term:|Due Date:|Billed on Statement:|Reference Invoice Number:|Recurring Charge Period:|For questions about your invoice|Tel:|Email:|Payment by Wire:|Payment by Check\/Post To:|This invoice is issued|E\. & O\.E\.|TAX INVOICE|Tax Invoice|page \d+ of \d+)/i;
+  const textHeaderRe=/^(ThinkPad|ThinkBook|ThinkCentre|ThinkCenter|ThinkVision|Lenovo|NB\b|Notebook\b|Desktop\b|Workstation\b|Monitor\b)/i;
+  const fullRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)$/i;
+  const numsRe=/^(WBD[A-Z0-9]+)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)$/i;
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function isContinuationText(text){
+    const t=clean(text);
+    if(!t)return false;
+    if(stopRe.test(t)||pidRe.test(t)||trancheValueRe.test(t)||/^\d{7,12}\b/.test(t))return false;
+    if(/\$\s*[\d,]+/.test(t))return false;
+    return true;
+  }
+  function collectPrefix(startIdx){
+    const prev=clean(lines[startIdx-1]?.text||'');
+    if(!isContinuationText(prev))return '';
+    return prev;
+  }
+  function collectSuffix(startIdx){
+    const parts=[];let endIdx=startIdx;
+    for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
+      const nxt=clean(lines[j].text);
+      if(!isContinuationText(nxt)||textHeaderRe.test(nxt))break;
+      parts.push(nxt);endIdx=j;
+    }
+    return {suffix:merge(parts),endIdx};
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    const invM=ln.match(/Invoice\s*Number:\s*(\d{7,12})/i);
+    if(invM){curInv=invM[1];curTr='';continue;}
+    const trM=ln.match(/Tranche\s*ID\s+(\S+)/i);
+    if(trM){curTr=trM[1];continue;}
+    if(/^Tranche\s*ID$/i.test(ln)){
+      const prev=clean(lines[i-1]?.text||'');
+      if(trancheValueRe.test(prev))curTr=prev;
+      continue;
+    }
+    if(stopRe.test(ln))continue;
+    let m=ln.match(fullRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([collectPrefix(i),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      i=suffixInfo.endIdx;continue;
+    }
+    m=ln.match(numsRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([collectPrefix(i),suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:pN(m[6]),total:pN(m[7]),taxRate:pN(m[5]),crfRdf:0,srcFile:fileName,srcPage:page});
+      i=suffixInfo.endIdx;continue;
+    }
+  }
+  return items;
+}
+
 function parseItemsGB11(lines,fileName){
   const items=[];let curInv='',curTr='';let pending=[];
   const pidRe=/^(WBD[A-Z0-9]+)\b/i;
@@ -1079,6 +1150,7 @@ function parseItems(country,lines,fileName,knownInvs){
   if(/^GB11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsGB11(lines,fileName);
   if(/^NL01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL01(lines,fileName);
   if(/^NL11_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsNL11(lines,fileName);
+  if(country==='AU')return parseItemsAU(lines,fileName);
   if(country==='TH')return parseItemsTH(lines,fileName);
   if(country==='MY')return parseItemsMY(lines,fileName);
   if(country==='JP')return parseItemsJP(lines,fileName);
