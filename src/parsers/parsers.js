@@ -530,6 +530,7 @@ function parseItemsGB11(lines,fileName){
   const pidRe=/^(WBD[A-Z0-9]+)\b/i;
   const fullRe=/^(WBD[A-Z0-9]+)\s+(.+?)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)$/i;
   const trancheInlineRe=/^Tranche\s*ID\s+(\S+)/i;
+  const trancheValueRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
   const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Invoice Messaging:|Export of services\.|Product Description Qty Unit Price Amount|For Tax Purposes Only GBP|Equivalent Exchange Rate|VAT |Total |Invoice Number Invoice Date Customer Number|Invoice to name|Sold to name|References|Payable on:|Please raise your claims|Transactions relating|Lenovo |This is a computer generated|Date =|page \d+ of \d+)/i;
   const nextHeaderRe=/^(United Kingdom\b|NoteBook\b|Notebook\b|ThinkPad\b|ThinkBook\b|ThinkCentre\b)/i;
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
@@ -565,7 +566,11 @@ function parseItemsGB11(lines,fileName){
     }
     const trM=ln.match(trancheInlineRe);
     if(trM){curTr=trM[1];pending=[];continue;}
-    if(/^Tranche\s*ID$/i.test(ln)){pending=[];continue;}
+    if(/^Tranche\s*ID$/i.test(ln)){
+      const prev=clean(lines[i-1]?.text||'');
+      if(trancheValueRe.test(prev))curTr=prev;
+      pending=[];continue;
+    }
     if(stopRe.test(ln)){pending=[];continue;}
     const m=ln.match(fullRe);
     if(m){
@@ -1009,6 +1014,22 @@ function parseItemsGen(lines,fileName,knownInvs,country){
   return items;
 }
 
+function backfillLineItemTranches(items){
+  const lastByInvoice=new Map();
+  for(const item of items){
+    const inv=String(item.inv||'').trim();
+    const tranche=String(item.tranche||'').trim();
+    if(inv&&tranche){
+      lastByInvoice.set(inv,tranche);
+      continue;
+    }
+    if(!tranche&&inv&&lastByInvoice.has(inv)){
+      item.tranche=lastByInvoice.get(inv);
+    }
+  }
+  return items;
+}
+
 // Parser router
 function parseItems(country,lines,fileName,knownInvs){
   if(/^AT01_STMT_BRIM_STATEMENT_/i.test(fileName))return parseItemsAT01(lines,fileName);
@@ -1038,7 +1059,7 @@ function parseStatement(lines,fileName){
   let bs=parseBillingSummary(fullText,lines,fileName,country);
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
-  const li=parseItems(country,lines,fileName,knownInvs);  // Detail totals per invoice
+  const li=backfillLineItemTranches(parseItems(country,lines,fileName,knownInvs));  // Detail totals per invoice
   for(const item of li)Object.assign(item,computeLinePriceAudit(item,cur));
   const trancheSummary=buildTrancheSummary(li);
   const priceGapIssues=li.filter(item=>item.priceGapAnomaly);

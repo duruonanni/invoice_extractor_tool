@@ -34,7 +34,10 @@
       "min_invoices": 31,
       "min_items": 100,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "non_empty_tranche": true
+      }
     },
     {
       "country": "JP",
@@ -149,7 +152,10 @@
       "min_invoices": 1,
       "min_items": 7,
       "max_failed_checks": 1,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "non_empty_tranche": true
+      }
     },
     {
       "country": "IN",
@@ -157,7 +163,10 @@
       "min_invoices": 1,
       "min_items": 7,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "non_empty_tranche": true
+      }
     },
     {
       "country": "GB",
@@ -165,7 +174,10 @@
       "min_invoices": 1,
       "min_items": 2,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "non_empty_tranche": true
+      }
     }
   ]
 }
