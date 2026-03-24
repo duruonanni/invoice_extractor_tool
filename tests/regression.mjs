@@ -105,6 +105,19 @@ function evaluateAssertions(statement, assertions = {}) {
     }
   }
 
+  if (Array.isArray(assertions.invoice_payment_terms)) {
+    for (const rule of assertions.invoice_payment_terms) {
+      const row = statement.bs.find(entry => entry.inv === rule.inv);
+      if (!row) {
+        failures.push(`missing billing row for invoice ${rule.inv}`);
+        continue;
+      }
+      if (!String(row.paymentTerm || '').includes(rule.contains)) {
+        failures.push(`invoice ${rule.inv} missing payment term text "${rule.contains}"`);
+      }
+    }
+  }
+
   if (Array.isArray(assertions.tranche_summary_contains)) {
     for (const rule of assertions.tranche_summary_contains) {
       const row = statement.trancheSummary.find(entry => entry.tranche === rule.tranche);

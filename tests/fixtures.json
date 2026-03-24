@@ -8,6 +8,12 @@
       "min_items": 1,
       "assertions": {
         "customer_name": "Mid-Coast Council",
+        "invoice_payment_terms": [
+          {
+            "inv": "100437037",
+            "contains": "30 days from date of invoice"
+          }
+        ],
         "pname_contains": [
           {
             "pid": "WBD0A00112",
@@ -36,7 +42,13 @@
       "max_failed_checks": 0,
       "max_mismatches": 0,
       "assertions": {
-        "non_empty_tranche": true
+        "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100438634",
+            "contains": "60 days from date of invoice"
+          }
+        ]
       }
     },
     {
@@ -73,7 +85,15 @@
       "country": "US",
       "file": "US22_STMT_BRIM_STATEMENT_EPREUSP0000749.PDF",
       "min_invoices": 1,
-      "min_items": 1
+      "min_items": 1,
+      "assertions": {
+        "invoice_payment_terms": [
+          {
+            "inv": "100104638",
+            "contains": "90 days from date of invoice"
+          }
+        ]
+      }
     },
     {
       "country": "CH",
@@ -82,6 +102,12 @@
       "min_items": 1,
       "assertions": {
         "non_empty_tranche": true,
+        "invoice_payment_terms": [
+          {
+            "inv": "100438621",
+            "contains": "30 days from date of invoice"
+          }
+        ],
         "tranche_summary_contains": [
           {
             "tranche": "1217132155_CH_202506_M_36_003",
@@ -128,7 +154,15 @@
       "min_invoices": 2,
       "min_items": 14,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "invoice_payment_terms": [
+          {
+            "inv": "100438983",
+            "contains": "90 days from date of invoice"
+          }
+        ]
+      }
     },
     {
       "country": "NL",
@@ -152,7 +186,15 @@
       "min_invoices": 3,
       "min_items": 9,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "invoice_payment_terms": [
+          {
+            "inv": "100441553",
+            "contains": "60 days from date of invoice"
+          }
+        ]
+      }
     },
     {
       "country": "MY",

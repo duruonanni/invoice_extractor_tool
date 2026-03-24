@@ -361,9 +361,11 @@ function renderComparisonTable(stmt) {
 
 function renderSummaryTable(stmt) {
   const hasFee = stmt.bs.some(row => row.crf || row.rdf);
+  const hasPaymentTerm = stmt.bs.some(row => String(row.paymentTerm || '').trim());
   const rows = stmt.bs.map(row => `
     <tr>
       <td class="mono">${esc(row.inv)}</td>
+      ${hasPaymentTerm ? `<td>${esc(row.paymentTerm || '')}</td>` : ''}
       <td class="tr mono">${fc(row.charges || 0, stmt.cur)}</td>
       <td class="tr mono">${fc(row.tax || 0, stmt.cur)}</td>
       ${hasFee ? `<td class="tr mono">${fc(row.crf || 0, stmt.cur)}</td><td class="tr mono">${fc(row.rdf || 0, stmt.cur)}</td>` : ''}
@@ -379,6 +381,7 @@ function renderSummaryTable(stmt) {
           <thead>
             <tr>
               <th>${t('invoice')}</th>
+              ${hasPaymentTerm ? `<th>${t('payment_term')}</th>` : ''}
               <th class="tr">${t('charges')}</th>
               <th class="tr">${t('tax')}</th>
               ${hasFee ? '<th class="tr">CRF</th><th class="tr">RDF</th>' : ''}
@@ -610,6 +613,7 @@ function doExport() {
     'Country',
     'Statement',
     'Invoice',
+    'Payment Term',
     'Charges',
     'Tax',
     'Total',
@@ -662,6 +666,7 @@ function doExport() {
         stmt.country,
         stmt.hd.stmtNum,
         row.inv || '',
+        row.paymentTerm || '',
         row.charges ?? '',
         row.tax ?? '',
         row.total ?? '',

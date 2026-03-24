@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.15';
+const VERSION='3.12.16';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -51,6 +51,7 @@ const I={
     product:'Product',
     name:'Name',
     tranche:'Tranche',
+    payment_term:'Payment Term',
     invoice_nos:'Invoice Nos',
     invoice_count:'Invoice Count',
     file:'File',
@@ -181,6 +182,52 @@ function computeExportFilename(statements,date=new Date()){
   const countryToken=sanitizeExportToken(first?.country||'Country');
   const multi=statements.length>1?'_MULTI':'';
   return `${stmtToken}_${countryToken}${multi}_Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
+}
+
+function extractInvoiceMetadata(lines,country){
+  const supported=new Set(['CH','AT','NL','AU','TH','US']);
+  if(!supported.has(country))return new Map();
+  const meta=new Map();
+  let curInv='';
+  function ensure(inv){
+    if(!meta.has(inv))meta.set(inv,{paymentTerm:''});
+    return meta.get(inv);
+  }
+  function captureInvoiceAt(idx){
+    for(let j=idx+1;j<Math.min(idx+4,lines.length);j++){
+      const m=String(lines[j].text||'').trim().match(/^(\d{7,12})\b/);
+      if(m)return m[1];
+    }
+    return '';
+  }
+  function normalizePaymentTerm(raw){
+    return String(raw||'')
+      .replace(/\s+/g,' ')
+      .replace(/\s*(Tax:|Total Amount Due:|Due Date:|Payment Instruction:).*$/i,'')
+      .trim();
+  }
+  for(let i=0;i<lines.length;i++){
+    const ln=String(lines[i].text||'').trim();
+    if(!ln)continue;
+    const inlineInv=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i)||ln.match(/송장\s*번호[:\s]*(\d{7,12})/i);
+    if(inlineInv){
+      curInv=inlineInv[1];
+      ensure(curInv);
+    }else if(/^Invoice\s*Number\s+Invoice\s*Date\s+Customer\s*Number/i.test(ln)){
+      const nextInv=captureInvoiceAt(i);
+      if(nextInv){
+        curInv=nextInv;
+        ensure(curInv);
+      }
+    }
+    if(!curInv)continue;
+    const pm=ln.match(/Payment\s*Terms?\s*:\s*(.+)$/i);
+    if(pm){
+      const term=normalizePaymentTerm(pm[1]);
+      if(term)ensure(curInv).paymentTerm=term;
+    }
+  }
+  return meta;
 }
 
 async function pdfToLines(file){

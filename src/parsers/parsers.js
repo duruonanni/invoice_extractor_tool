@@ -1100,6 +1100,7 @@ function parseStatement(lines,fileName){
   const cur=(CM[country]||CM.OTHER).cur;
   const hd=parseHeader(lines);
   let bs=parseBillingSummary(fullText,lines,fileName,country);
+  const invoiceMeta=extractInvoiceMetadata(lines,country);
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
   const li=backfillLineItemTranches(parseItems(country,lines,fileName,knownInvs));  // Detail totals per invoice
@@ -1113,6 +1114,7 @@ function parseStatement(lines,fileName){
     bsDerived=true;
     bs=Object.entries(dt).map(([inv,v])=>({inv,charges:v.charges,tax:v.tax,total:v.total,crf:0,rdf:0}));
   }
+  bs=bs.map(row=>({...row,...(invoiceMeta.get(row.inv)||{})}));
   const dGT={charges:Object.values(dt).reduce((s,v)=>s+v.charges,0),tax:Object.values(dt).reduce((s,v)=>s+v.tax,0),total:Object.values(dt).reduce((s,v)=>s+v.total,0),crfRdf:Object.values(dt).reduce((s,v)=>s+(v.crfRdf||0),0)};
   const sT=bs.reduce((a,r)=>{a.charges+=r.charges||0;a.tax+=r.tax||0;a.total+=r.total||0;a.crfRdf+=(r.crf||0)+(r.rdf||0);return a;},{charges:0,tax:0,total:0,crfRdf:0});
   // Comparison + unmapped
