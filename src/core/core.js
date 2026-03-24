@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.28';
+const VERSION='3.12.29';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={

@@ -521,7 +521,15 @@
       "min_invoices": 4,
       "min_items": 5,
       "max_failed_checks": 0,
-      "max_mismatches": 0
+      "max_mismatches": 0,
+      "assertions": {
+        "pname_contains": [
+          {
+            "pid": "WBD0A91187",
+            "contains": "ThinkPad T14 G5+ARS"
+          }
+        ]
+      }
     },
     {
       "country": "IN",

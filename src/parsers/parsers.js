@@ -940,6 +940,11 @@ function parseItemsIN(lines,fileName){
       if(pidParts.length>4)pidParts=pidParts.slice(-4);
       continue;
     }
+    if(pidParts.length&&/^\d{1,4}$/.test(ln)){
+      pidParts.push(ln);
+      if(pidParts.length>5)pidParts=pidParts.slice(-5);
+      continue;
+    }
     if(!/^\d{6,}$/.test(ln)){
       pendingDesc.push(ln);
       if(pendingDesc.length>3)pendingDesc=pendingDesc.slice(-3);
