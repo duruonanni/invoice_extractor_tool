@@ -423,36 +423,79 @@ function parseItemsEMEA(lines,fileName){
 function parseItemsKR(lines,fileName){
   const items=[];let curInv='',curTr='';
   const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/;
-  const sectRe=/Tranche\s*ID|Invoice\s*Number|Sub[\s-]*Total|Grand[\s-]*Total|Product\s*ID/i;
-  const curRe=/KRW\s*[\d,]+/;
-  const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)/;
-  const reNums=/^\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+KRW\s*([\d,]+\.?\d*)\s+KRW\s*([\d,]+\.?\d*)/;
+  const curSym='(?:KRW|\\$)';
+  const sectRe=/(?:Tranche\s*ID|Invoice\s*Number|발행\s*ID|송장\s*번호|Sub[\s-]*Total|Grand[\s-]*Total|제품ID|제품명|세율|청구사항|반복되는\s*청구기간|서비스내역|세금계산서번호|청구처|청구사항)/i;
+  const stopRe=/^(소계|총 합계|Grand Total|Sub-Total|제품과 서비스 합계|부가가치세 합계|부가가치세 포함 총합계|본 청구서는|Payment Terms:|Payable on:|송금계좌|세금용도로만|Invoice Messaging:|page \d+ of \d+)/i;
+  const fullRe=new RegExp(`^([A-Za-z0-9][A-Za-z0-9_]{4,})\\s+(.+?)\\s+([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)$`,'i');
+  const numsRe=new RegExp(`^([A-Za-z0-9][A-Za-z0-9_]{4,})\\s+([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+([\\d.]+)\\s*%\\s+${curSym}\\s*([\\d,]+\\.?\\d*)\\s+${curSym}\\s*([\\d,]+\\.?\\d*)$`,'i');
+  function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  function merge(parts){
+    const out=[];
+    for(const raw of parts){
+      const p=clean(raw);
+      if(!p)continue;
+      if(out.length&&out[out.length-1]===p)continue;
+      out.push(p);
+    }
+    return out.join(' ').trim();
+  }
+  function isContextLine(text){
+    const t=clean(text);
+    if(!t)return false;
+    if(sectRe.test(t)||stopRe.test(t)||pidRe.test(t))return false;
+    if(new RegExp(`${curSym}\\s*[\\d,]+`,'i').test(t))return false;
+    if(/^[\d,.\s%]+$/.test(t))return false;
+    return true;
+  }
+  function collectPrefix(idx){
+    const parts=[];
+    for(let j=idx-1;j>=Math.max(0,idx-3);j--){
+      const prev=clean(lines[j].text);
+      if(!prev)continue;
+      if(sectRe.test(prev)||stopRe.test(prev)||pidRe.test(prev)||new RegExp(`${curSym}\\s*[\\d,]+`,'i').test(prev))break;
+      if(isContextLine(prev))parts.unshift(prev);
+    }
+    return parts;
+  }
+  function collectSuffix(idx){
+    const parts=[]; let endIdx=idx;
+    for(let j=idx+1;j<Math.min(idx+4,lines.length);j++){
+      const next=clean(lines[j].text);
+      if(!next)continue;
+      if(sectRe.test(next)||stopRe.test(next)||pidRe.test(next)||/^\d{7,12}\b/.test(next)||new RegExp(`${curSym}\\s*[\\d,]+`,'i').test(next))break;
+      if(isContextLine(next)){parts.push(next); endIdx=j; continue;}
+      break;
+    }
+    return {suffix:merge(parts),endIdx};
+  }
   for(let i=0;i<lines.length;i++){
-    const{text:ln,page}=lines[i];
-    const im=ln.match(/Invoice\s*Number[:\s]*(\d{7,12})/i);if(im){curInv=im[1];continue}
-    if(/Invoice\s*Number/i.test(ln)&&!/\d{7,12}/.test(ln)){
-      if(i+1<lines.length){const pk=lines[i+1].text.trim();const pm=pk.match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);if(pm)curInv=pm[1];}
+    const ln=clean(lines[i].text),page=lines[i].page;
+    if(!ln)continue;
+    const im=ln.match(/(?:Invoice\s*Number|송장\s*번호)[:\s]*(\d{7,12})/i);
+    if(im){curInv=im[1];continue;}
+    if(/(?:Invoice\s*Number|송장\s*번호)/i.test(ln)&&!/\d{7,12}/.test(ln)){
+      if(i+1<lines.length){
+        const pm=clean(lines[i+1].text).match(/^([A-Z]{2,}\d{6,}|\d{7,12})/);
+        if(pm)curInv=pm[1];
+      }
       continue;
     }
-    const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
-    if(/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
-    const wm=ln.match(pidRe);if(!wm||!curRe.test(ln))continue;
-    const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);
-    let m=reFull.exec(after);
+    const tm=ln.match(/(?:Tranche\s*ID|발행\s*ID)\s+(\S+)/i);
+    if(tm){curTr=tm[1];continue;}
+    if(stopRe.test(ln))continue;
+    let m=ln.match(fullRe);
     if(m){
-      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
-      if(tot>0){items.push({inv:curInv,tranche:curTr,pid,pname:m[1].trim(),qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});continue;}
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([...collectPrefix(i),m[2],suffixInfo.suffix])||m[1];
+      const qty=pN(m[3]),up=pN(m[4]),ch=pN(m[5]),rate=pN(m[6]),tax=pN(m[7]),tot=pN(m[8]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});i=suffixInfo.endIdx;continue;}
     }
-    m=reNums.exec(after);
+    m=ln.match(numsRe);
     if(m){
-      let pname='';
-      for(let j=i-1;j>=Math.max(0,i-3);j--){
-        const prev=lines[j].text.trim();if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev)||curRe.test(prev))break;
-        if(!/^\s*[\d,KRW%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
-      }
-      const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),rate=pN(m[4]),tax=pN(m[5]),tot=pN(m[6]);
-      if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([...collectPrefix(i),suffixInfo.suffix])||m[1];
+      const qty=pN(m[2]),up=pN(m[3]),ch=pN(m[4]),rate=pN(m[5]),tax=pN(m[6]),tot=pN(m[7]);
+      if(tot>0){items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty,up,charges:ch,tax,total:tot,taxRate:rate,crfRdf:0,srcFile:fileName,srcPage:page});i=suffixInfo.endIdx;continue;}
     }
   }
   return items;

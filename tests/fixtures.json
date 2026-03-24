@@ -96,7 +96,31 @@
       "country": "KR",
       "file": "KR01_STMT_BRIM_STATEMENT_EPREKRP0000190_KO.PDF",
       "min_invoices": 1,
-      "min_items": 1
+      "min_items": 3,
+      "max_failed_checks": 1,
+      "assertions": {
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "KR",
+      "file": "KR01_STMT_BRIM_STATEMENT_EPREKRP0000191_KO.PDF",
+      "min_invoices": 5,
+      "min_items": 15,
+      "max_failed_checks": 1,
+      "assertions": {
+        "non_empty_tranche": true
+      }
+    },
+    {
+      "country": "KR",
+      "file": "KR11_STMT_BRIM_STATEMENT_EPREKRP0000202_KO.PDF",
+      "min_invoices": 1,
+      "min_items": 4,
+      "max_failed_checks": 1,
+      "assertions": {
+        "non_empty_tranche": true
+      }
     },
     {
       "country": "NL",
