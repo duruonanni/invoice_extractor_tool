@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.22';
+const VERSION='3.12.23';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -177,11 +177,19 @@ function sanitizeExportToken(value){
 
 function computeExportFilename(statements,date=new Date()){
   if(!statements?.length)return `Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
+  if(statements.length>1){
+    const countrySet=new Set(statements.map(stmt=>sanitizeExportToken(stmt?.country||'Country')));
+    const stmtCount=statements.length;
+    const countryCount=countrySet.size;
+    const scope=countryCount===1
+      ? `${[...countrySet][0]}_${stmtCount}Statements`
+      : `MULTI_${stmtCount}Statements_${countryCount}Countries`;
+    return `${scope}_Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
+  }
   const first=statements[0];
   const stmtToken=sanitizeExportToken(first?.hd?.stmtNum||first?.fileName||'Statement');
   const countryToken=sanitizeExportToken(first?.country||'Country');
-  const multi=statements.length>1?'_MULTI':'';
-  return `${stmtToken}_${countryToken}${multi}_Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
+  return `${stmtToken}_${countryToken}_Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
 }
 
 function extractInvoiceMetadata(lines,country){

@@ -165,7 +165,7 @@ function evaluateDerivedFunctionChecks() {
     ],
     new Date('2026-03-24T10:00:00'),
   );
-  if (multiName !== 'EPREJPP0000568_JP_MULTI_Invoice_Validator_Export_20260324.xlsx') {
+  if (multiName !== 'MULTI_2Statements_2Countries_Invoice_Validator_Export_20260324.xlsx') {
     failures.push(`multi export filename mismatch: ${multiName}`);
   }
 

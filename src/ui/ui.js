@@ -70,6 +70,7 @@ async function addFiles(fileList) {
 
 function removeFile(id) {
   fileEntries = fileEntries.filter(entry => entry.id !== id);
+  rebuildAnalysisResults();
   renderFileList();
   updateRunButton();
 }
@@ -84,6 +85,45 @@ function clearAll() {
   actionBarEl.style.display = 'none';
   exportBtnEl.style.display = 'none';
   updateRunButton();
+}
+
+function rebuildAnalysisResults() {
+  const ready = fileEntries.filter(entry => entry.status === 'ready');
+  if (!ready.length) {
+    analysisResults = null;
+    resultsEl.innerHTML = '';
+    cardsEl.innerHTML = '';
+    summaryWrapEl.style.display = 'none';
+    exportBtnEl.style.display = 'none';
+    return;
+  }
+  analysisResults = {};
+  for (const entry of ready) {
+    try {
+      const statement = parseStatement(entry.lines || [], entry.name);
+      const key = statement.country;
+      if (!analysisResults[key]) {
+        analysisResults[key] = {
+          country: key,
+          meta: CM[key] || CM.OTHER,
+          stmts: [],
+        };
+      }
+      analysisResults[key].stmts.push(statement);
+    } catch (err) {
+      console.error(entry.name, err);
+    }
+  }
+  if (Object.keys(analysisResults).length) {
+    renderResults();
+    exportBtnEl.style.display = 'inline-flex';
+  } else {
+    analysisResults = null;
+    resultsEl.innerHTML = '';
+    cardsEl.innerHTML = '';
+    summaryWrapEl.style.display = 'none';
+    exportBtnEl.style.display = 'none';
+  }
 }
 
 function renderFileList() {
