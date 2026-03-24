@@ -14,7 +14,7 @@
       "file": "JP01_STMT_BRIM_STATEMENT_EPREJPP0000568_JA.PDF",
       "min_invoices": 7,
       "min_items": 396,
-      "max_failed_checks": 0,
+      "max_failed_checks": 1,
       "max_mismatches": 0,
       "assertions": {
         "non_empty_tranche": true,
@@ -27,7 +27,16 @@
             "pid": "WBD0A55067",
             "contains": "Japan With Autopilot NoteBook"
           }
-        ]
+        ],
+        "tranche_summary_contains": [
+          {
+            "tranche": "1217766541_JP_202603_M_48_017",
+            "qty": 2956,
+            "invoice_count": 3,
+            "invoice_contains": "100464450"
+          }
+        ],
+        "price_gap_issues": 2
       }
     },
     {
@@ -101,7 +110,7 @@
       "file": "IN03_STMT_BRIM_STATEMENT_EPREINP0000737.PDF",
       "min_invoices": 1,
       "min_items": 7,
-      "max_failed_checks": 0,
+      "max_failed_checks": 1,
       "max_mismatches": 0
     },
     {

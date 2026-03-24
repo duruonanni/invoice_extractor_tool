@@ -994,6 +994,9 @@ function parseStatement(lines,fileName){
   let bsDerived=false;
   const knownInvs=new Set(bs.map(r=>r.inv).filter(Boolean));
   const li=parseItems(country,lines,fileName,knownInvs);  // Detail totals per invoice
+  for(const item of li)Object.assign(item,computeLinePriceAudit(item,cur));
+  const trancheSummary=buildTrancheSummary(li);
+  const priceGapIssues=li.filter(item=>item.priceGapAnomaly);
   const dt={};
   for(const r of li){const k=r.inv||'?';if(!dt[k])dt[k]={charges:0,tax:0,total:0,crfRdf:0,count:0,nonWbd:0};dt[k].charges+=r.charges;dt[k].tax+=r.tax;dt[k].total+=r.total;dt[k].crfRdf+=(r.crfRdf||0);dt[k].count++;if(!/^WBD/i.test(r.pid))dt[k].nonWbd++}
     // If billing summary missing, derive from detail totals
@@ -1037,10 +1040,14 @@ function parseStatement(lines,fileName){
   for(const c of comp.filter(x=>x.st==='matched'&&!x.m))
     vr.push({nm:`Inv ${c.inv}: mismatch`,p:false,sv:'f',dt:`Diff charges=${fc(c.dC_,cur)} | tax=${fc(c.dT_,cur)} | total=${fc(c.dTot_,cur)}`});
   vr.push({nm:'Line Items',p:li.length>0,sv:li.length>0?'p':'w',dt:li.length?`${li.length} WBD, ${new Set(li.map(l=>l.tranche)).size} tranches`:t('no_items')});
+  if(priceGapIssues.length){
+    const detail=priceGapIssues.slice(0,6).map(item=>`${item.inv}/${item.pid}: ${fc(item.priceGap,cur)}`).join(' | ');
+    vr.push({nm:`Detail price gap anomalies (${priceGapIssues.length})`,p:false,sv:'f',dt:detail});
+  }
   const nwAll=li.filter(l=>!/^WBD/i.test(l.pid));
   if(nwAll.length){const byInv={};for(const l of nwAll){if(!byInv[l.inv])byInv[l.inv]=[];byInv[l.inv].push(l.pid)}
     const det=Object.entries(byInv).map(([inv,pids])=>`${inv}: ${pids.join(', ')}`).join(' | ');
     vr.push({nm:`${nwAll.length} non-WBD product(s)`,p:false,sv:'w',dt:det})}
 
-  return{fileName,country,cur,hd,bs,li,sT,dt,dGT,comp,unmS,unmD,vr};
+  return{fileName,country,cur,hd,bs,li,trancheSummary,priceGapIssues,sT,dt,dGT,comp,unmS,unmD,vr};
 }

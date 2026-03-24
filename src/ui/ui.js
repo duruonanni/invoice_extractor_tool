@@ -260,6 +260,7 @@ function renderStatement(stmt) {
       ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
       ${renderComparisonTable(stmt)}
       ${renderSummaryTable(stmt)}
+      ${renderTrancheSummaryTable(stmt)}
       ${renderDetailTable(stmt, safeId)}
       ${renderValidationList(stmt)}
     </article>
@@ -344,18 +345,53 @@ function renderSummaryTable(stmt) {
   `;
 }
 
+function renderTrancheSummaryTable(stmt) {
+  const rows = stmt.trancheSummary.map(row => `
+    <tr>
+      <td class="mono">${esc(row.tranche || '')}</td>
+      <td class="tr mono">${row.qty ?? ''}</td>
+      <td class="tr mono">${fc(row.charges || 0, stmt.cur)}</td>
+      <td class="tr mono">${row.invoiceCount}</td>
+      <td class="wrap">${esc(row.invoiceNos.join(', '))}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <details>
+      <summary>${t('tranche_summary')} (${stmt.trancheSummary.length})</summary>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>${t('tranche')}</th>
+              <th class="tr">${t('qty')}</th>
+              <th class="tr">${t('charges')}</th>
+              <th class="tr">${t('invoice_count')}</th>
+              <th>${t('invoice_nos')}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>
+  `;
+}
+
 function renderDetailTable(stmt, safeId) {
   const invoices = [...new Set(stmt.li.map(item => item.inv))].sort();
   const hasCrf = stmt.li.some(item => item.crfRdf);
   const rows = stmt.li.map(item => `
-    <tr data-inv="${esc(item.inv)}">
+    <tr data-inv="${esc(item.inv)}" class="${item.priceGapAnomaly ? 'ra' : ''}">
       <td class="mono">${esc(item.inv)}</td>
       <td class="mono">${esc(item.tranche || '')}</td>
       <td class="mono">${esc(item.pid || '')}</td>
-      <td>${esc(item.pname || '')}</td>
+      <td class="wrap">${esc(item.pname || '')}</td>
       <td class="tr mono">${item.qty ?? ''}</td>
       <td class="tr mono">${fc(item.up || 0, stmt.cur)}</td>
+      <td class="tr mono">${fc(item.expectedCharges || 0, stmt.cur)}</td>
       <td class="tr mono">${fc(item.charges || 0, stmt.cur)}</td>
+      <td class="tr mono ${item.priceGapAnomaly ? 'tre' : 'tg'}">${fc(item.priceGap || 0, stmt.cur)}</td>
+      <td>${esc(item.priceGapStatus || 'OK')}</td>
       <td class="tr mono">${fc(item.tax || 0, stmt.cur)}</td>
       ${hasCrf ? `<td class="tr mono">${fc(item.crfRdf || 0, stmt.cur)}</td>` : ''}
       <td class="tr mono">${fc(item.total || 0, stmt.cur)}</td>
@@ -381,7 +417,10 @@ function renderDetailTable(stmt, safeId) {
               <th>${t('name')}</th>
               <th class="tr">${t('qty')}</th>
               <th class="tr">${t('unit_price')}</th>
+              <th class="tr">${t('expected_charges')}</th>
               <th class="tr">${t('charges')}</th>
+              <th class="tr">${t('price_gap')}</th>
+              <th>${t('gap_status')}</th>
               <th class="tr">${t('tax')}</th>
               ${hasCrf ? '<th class="tr">CRF/RDF</th>' : ''}
               <th class="tr">${t('total')}</th>
@@ -509,7 +548,19 @@ function doExport() {
     'Customer',
     'Invoices',
     'Line Items',
+    'Tranches',
+    'Price Gap Issues',
     'Issues'
+  ]];
+  const trancheRows = [[
+    'File',
+    'Country',
+    'Statement',
+    'Tranche',
+    'Qty Total',
+    'Charges Total',
+    'Invoice Count',
+    'Invoice Nos'
   ]];
   const detailRows = [[
     'File',
@@ -521,7 +572,10 @@ function doExport() {
     'Name',
     'Qty',
     'Unit Price',
+    'Expected Charges',
     'Charges',
+    'Price Gap',
+    'Gap Status',
     'Tax',
     'Total',
     'Page'
@@ -535,8 +589,22 @@ function doExport() {
       stmt.hd.custName || stmt.hd.custNum || '',
       stmt.bs.length,
       stmt.li.length,
+      stmt.trancheSummary.length,
+      stmt.priceGapIssues.length,
       stmt.vr.filter(check => check.sv === 'f').length,
     ]);
+    for (const tranche of stmt.trancheSummary) {
+      trancheRows.push([
+        stmt.fileName,
+        stmt.country,
+        stmt.hd.stmtNum,
+        tranche.tranche || '',
+        tranche.qty ?? '',
+        tranche.charges ?? '',
+        tranche.invoiceCount ?? '',
+        tranche.invoiceNos.join(', '),
+      ]);
+    }
     for (const item of stmt.li) {
       detailRows.push([
         stmt.fileName,
@@ -548,7 +616,10 @@ function doExport() {
         item.pname || '',
         item.qty ?? '',
         item.up ?? '',
+        item.expectedCharges ?? '',
         item.charges ?? '',
+        item.priceGap ?? '',
+        item.priceGapStatus || '',
         item.tax ?? '',
         item.total ?? '',
         item.srcPage ?? '',
@@ -557,8 +628,9 @@ function doExport() {
   }
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trancheRows), 'Tranche Summary');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Detail');
-  XLSX.writeFile(wb, `invoice_validator_export_${VERSION}.xlsx`);
+  XLSX.writeFile(wb, computeExportFilename(statements));
 }
 
 window.addFiles = addFiles;

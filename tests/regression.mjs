@@ -65,8 +65,16 @@ vm.runInContext(core, context, { filename: 'core.js' });
 context.pdfjsLib.GlobalWorkerOptions.workerSrc = workerHref;
 vm.runInContext(parsers, context, { filename: 'parsers.js' });
 
-const { pdfToLines, parseStatement } = context;
-if (!pdfToLines || !parseStatement) throw new Error('Core functions missing');
+const {
+  pdfToLines,
+  parseStatement,
+  computeExportFilename,
+  computeLinePriceAudit,
+  buildTrancheSummary,
+} = context;
+if (!pdfToLines || !parseStatement || !computeExportFilename || !computeLinePriceAudit || !buildTrancheSummary) {
+  throw new Error('Core functions missing');
+}
 
 function evaluateAssertions(statement, assertions = {}) {
   const failures = [];
@@ -89,6 +97,87 @@ function evaluateAssertions(statement, assertions = {}) {
         failures.push(`pid ${rule.pid} missing text "${rule.contains}" in pname`);
       }
     }
+  }
+
+  if (Array.isArray(assertions.tranche_summary_contains)) {
+    for (const rule of assertions.tranche_summary_contains) {
+      const row = statement.trancheSummary.find(entry => entry.tranche === rule.tranche);
+      if (!row) {
+        failures.push(`missing tranche summary for ${rule.tranche}`);
+        continue;
+      }
+      if (rule.qty != null && row.qty !== rule.qty) {
+        failures.push(`tranche ${rule.tranche} qty expected ${rule.qty} got ${row.qty}`);
+      }
+      if (rule.charges != null && Math.abs(row.charges - rule.charges) >= 1) {
+        failures.push(`tranche ${rule.tranche} charges expected ${rule.charges} got ${row.charges}`);
+      }
+      if (rule.invoice_count != null && row.invoiceCount !== rule.invoice_count) {
+        failures.push(`tranche ${rule.tranche} invoiceCount expected ${rule.invoice_count} got ${row.invoiceCount}`);
+      }
+      if (rule.invoice_contains && !row.invoiceNos.includes(rule.invoice_contains)) {
+        failures.push(`tranche ${rule.tranche} missing invoice ${rule.invoice_contains}`);
+      }
+    }
+  }
+
+  if (assertions.price_gap_issues != null && statement.priceGapIssues.length !== assertions.price_gap_issues) {
+    failures.push(`priceGapIssues expected ${assertions.price_gap_issues} got ${statement.priceGapIssues.length}`);
+  }
+
+  return failures;
+}
+
+function evaluateDerivedFunctionChecks() {
+  const failures = [];
+
+  const singleName = computeExportFilename(
+    [{ hd: { stmtNum: 'EPREJPP0000568' }, country: 'JP', fileName: 'jp.pdf' }],
+    new Date('2026-03-24T10:00:00'),
+  );
+  if (singleName !== 'EPREJPP0000568_JP_Invoice_Validator_Export_20260324.xlsx') {
+    failures.push(`single export filename mismatch: ${singleName}`);
+  }
+
+  const multiName = computeExportFilename(
+    [
+      { hd: { stmtNum: 'EPREJPP0000568' }, country: 'JP', fileName: 'jp.pdf' },
+      { hd: { stmtNum: 'EPREUSP0000749' }, country: 'US', fileName: 'us.pdf' },
+    ],
+    new Date('2026-03-24T10:00:00'),
+  );
+  if (multiName !== 'EPREJPP0000568_JP_MULTI_Invoice_Validator_Export_20260324.xlsx') {
+    failures.push(`multi export filename mismatch: ${multiName}`);
+  }
+
+  const jpyOk = computeLinePriceAudit({ qty: 3, up: 100, charges: 300.4 }, 'JPY');
+  if (jpyOk.priceGapAnomaly) {
+    failures.push('JPY sub-1 gap should not be anomalous');
+  }
+
+  const jpyBad = computeLinePriceAudit({ qty: 3, up: 100, charges: 301 }, 'JPY');
+  if (!jpyBad.priceGapAnomaly) {
+    failures.push('JPY gap of 1 should be anomalous');
+  }
+
+  const usdOk = computeLinePriceAudit({ qty: 10, up: 1.23, charges: 12.305 }, 'USD');
+  if (usdOk.priceGapAnomaly) {
+    failures.push('USD sub-0.01 gap should not be anomalous');
+  }
+
+  const usdBad = computeLinePriceAudit({ qty: 10, up: 1.23, charges: 12.31 }, 'USD');
+  if (!usdBad.priceGapAnomaly) {
+    failures.push('USD gap of 0.01 should be anomalous');
+  }
+
+  const trancheSummary = buildTrancheSummary([
+    { tranche: 'T1', qty: 2, charges: 10, inv: 'INV2' },
+    { tranche: 'T1', qty: 3, charges: 20, inv: 'INV1' },
+    { tranche: 'T2', qty: 1, charges: 5, inv: 'INV1' },
+  ]);
+  const t1 = trancheSummary.find(row => row.tranche === 'T1');
+  if (!t1 || t1.qty !== 5 || t1.charges !== 30 || t1.invoiceCount !== 2 || t1.invoiceNos.join(',') !== 'INV1,INV2') {
+    failures.push(`tranche summary aggregation mismatch: ${JSON.stringify(t1)}`);
   }
 
   return failures;
@@ -135,6 +224,12 @@ for (const c of fixtures.cases) {
     console.error(`  assertionFailures: ${assertionFailures.join(' | ')}`);
   }
   if (!ok) failed = true;
+}
+
+const derivedFailures = evaluateDerivedFunctionChecks();
+if (derivedFailures.length) {
+  failed = true;
+  console.error(`Derived function checks failed: ${derivedFailures.join(' | ')}`);
 }
 
 if (failed) process.exit(1);

@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.5';
+const VERSION='3.12.6';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -23,6 +23,7 @@ const I={
     hierarchy:'Hierarchy',
     all_errors:'All Errors',
     billing_sum:'Billing Summary',
+    tranche_summary:'Tranche Summary',
     detail_items:'Detail Line Items',
     validation:'Validation',
     checks:'checks',
@@ -36,9 +37,14 @@ const I={
     match:'Match',
     qty:'Qty',
     unit_price:'Unit Price',
+    expected_charges:'Expected Charges',
+    price_gap:'Price Gap',
+    gap_status:'Gap Status',
     product:'Product',
     name:'Name',
     tranche:'Tranche',
+    invoice_nos:'Invoice Nos',
+    invoice_count:'Invoice Count',
     file:'File',
     page:'Page',
     no_items:'No line items found',
@@ -88,6 +94,85 @@ function inferDisplayName(rawName, country, lines){
     return `${country}_STMT_BRIM_STATEMENT_${stmt}_${lang}.PDF`;
   }
   return stmt||name;
+}
+
+function isZeroDecimalCurrency(cur){
+  return cur==='JPY'||cur==='KRW';
+}
+
+function priceGapTolerance(cur){
+  return isZeroDecimalCurrency(cur)?1:0.01;
+}
+
+function computeLinePriceAudit(item,cur){
+  const qty=Number(item?.qty)||0;
+  const up=Number(item?.up)||0;
+  const charges=Number(item?.charges)||0;
+  const expectedCharges=qty*up;
+  const gap=Math.abs(expectedCharges-charges);
+  const tolerance=priceGapTolerance(cur);
+  const epsilon=1e-9;
+  const anomaly=gap+epsilon>=tolerance;
+  return{
+    expectedCharges,
+    priceGap:gap,
+    priceGapTolerance:tolerance,
+    priceGapAnomaly:anomaly,
+    priceGapStatus:anomaly?'Anomaly':'OK',
+  };
+}
+
+function buildTrancheSummary(items){
+  const grouped=new Map();
+  for(const item of items||[]){
+    const tranche=String(item?.tranche||'').trim();
+    if(!grouped.has(tranche)){
+      grouped.set(tranche,{tranche,qty:0,charges:0,invoices:new Set(),lineItems:0});
+    }
+    const row=grouped.get(tranche);
+    row.qty+=(Number(item?.qty)||0);
+    row.charges+=(Number(item?.charges)||0);
+    if(item?.inv)row.invoices.add(String(item.inv));
+    row.lineItems+=1;
+  }
+  return [...grouped.values()]
+    .map(row=>({
+      tranche:row.tranche,
+      qty:row.qty,
+      charges:row.charges,
+      invoiceCount:row.invoices.size,
+      invoiceNos:[...row.invoices].sort(),
+      lineItems:row.lineItems,
+    }))
+    .sort((a,b)=>{
+      if(!a.tranche&&b.tranche)return 1;
+      if(a.tranche&&!b.tranche)return-1;
+      return a.tranche.localeCompare(b.tranche);
+    });
+}
+
+function formatYYYYMMDD(date=new Date()){
+  const y=String(date.getFullYear());
+  const m=String(date.getMonth()+1).padStart(2,'0');
+  const d=String(date.getDate()).padStart(2,'0');
+  return `${y}${m}${d}`;
+}
+
+function sanitizeExportToken(value){
+  return String(value||'')
+    .replace(/\.pdf$/i,'')
+    .trim()
+    .replace(/[^\w.-]+/g,'_')
+    .replace(/^_+|_+$/g,'')||'UNKNOWN';
+}
+
+function computeExportFilename(statements,date=new Date()){
+  if(!statements?.length)return `Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
+  const first=statements[0];
+  const stmtToken=sanitizeExportToken(first?.hd?.stmtNum||first?.fileName||'Statement');
+  const countryToken=sanitizeExportToken(first?.country||'Country');
+  const multi=statements.length>1?'_MULTI':'';
+  return `${stmtToken}_${countryToken}${multi}_Invoice_Validator_Export_${formatYYYYMMDD(date)}.xlsx`;
 }
 
 async function pdfToLines(file){
