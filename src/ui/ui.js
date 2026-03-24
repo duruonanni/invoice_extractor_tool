@@ -429,7 +429,6 @@ function renderDetailTable(stmt, safeId) {
   const hasCrf = stmt.li.some(item => item.crfRdf);
   const rows = stmt.li.map(item => `
     <tr data-inv="${esc(item.inv)}" class="${item.priceGapAnomaly ? 'ra' : ''}">
-      <td>${esc(item.srcFile || '')}</td>
       <td class="mono">${esc(item.inv)}</td>
       <td class="mono">${esc(item.tranche || '')}</td>
       <td class="mono">${esc(item.pid || '')}</td>
@@ -458,7 +457,6 @@ function renderDetailTable(stmt, safeId) {
         <table id="${safeId}">
           <thead>
             <tr>
-              <th>${t('file')}</th>
               <th>${t('invoice')}</th>
               <th>${t('tranche')}</th>
               <th>${t('product')}</th>
@@ -618,7 +616,6 @@ function doExport() {
     'Invoice Nos'
   ]];
   const detailRows = [[
-    'File',
     'Country',
     'Statement',
     'Invoice',
@@ -662,7 +659,6 @@ function doExport() {
     }
     for (const item of stmt.li) {
       detailRows.push([
-        stmt.fileName,
         stmt.country,
         stmt.hd.stmtNum,
         item.inv,

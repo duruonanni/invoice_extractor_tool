@@ -254,6 +254,7 @@ function parseItemsUS(lines,fileName){
 // CH parser: Switzerland (CHF, decimal qty, 8.10% VAT)
 function parseItemsCH(lines,fileName){
   const items=[];let curInv='',curTr='';
+  const trancheValueRe=/^\d{7,}_[A-Z]{2}_[A-Z0-9_]+$/i;
   // Full pattern: product name + qty + CHF up + CHF charges + rate% + CHF tax + CHF total
   const reFull=/(.+?)\s+([\d,]+\.?\d*)\s+CHF\s*([\d,]+\.?\d*)\s+CHF\s*([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+CHF\s*([\d,]+\.?\d*)\s+CHF\s*([\d,]+\.?\d*)/;
   // Numbers-only: WBD line has no product name
@@ -269,6 +270,11 @@ function parseItemsCH(lines,fileName){
       continue;
     }
     const tm=ln.match(/Tranche\s*ID\s+(\S+)/i);if(tm){curTr=tm[1];continue}
+    if(/^Tranche\s*ID$/i.test(ln)){
+      const prev=lines[i-1]?.text.trim()||'';
+      if(trancheValueRe.test(prev))curTr=prev;
+      continue;
+    }
     if(!/WBD[A-Z0-9]/i.test(ln)||/sub[\s-]*total|grand[\s-]*total/i.test(ln))continue;
     const wm=ln.match(/(WBD[A-Z0-9]+)/i);if(!wm)continue;
     const pid=wm[1],after=ln.substring(ln.indexOf(pid)+pid.length);

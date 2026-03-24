@@ -76,7 +76,18 @@
       "country": "CH",
       "file": "CH01_STMT_BRIM_STATEMENT_EPRECHP0000234_EN.PDF",
       "min_invoices": 1,
-      "min_items": 1
+      "min_items": 1,
+      "assertions": {
+        "non_empty_tranche": true,
+        "tranche_summary_contains": [
+          {
+            "tranche": "1217132155_CH_202506_M_36_003",
+            "qty": 21,
+            "invoice_count": 1,
+            "invoice_contains": "100438621"
+          }
+        ]
+      }
     },
     {
       "country": "KR",
