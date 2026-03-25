@@ -715,13 +715,13 @@ function doExport() {
         stmt.hd.stmtNum,
         row.inv || '',
         row.paymentTerm || '',
-        row.charges ?? '',
-        row.tax ?? '',
-        row.total ?? '',
+        normalizeExportAmount(row.charges ?? '', stmt.cur),
+        normalizeExportAmount(row.tax ?? '', stmt.cur),
+        normalizeExportAmount(row.total ?? '', stmt.cur),
         row.arithmeticStatus || '',
-        row.arithmeticDiff ?? '',
-        row.crf ?? '',
-        row.rdf ?? '',
+        normalizeExportAmount(row.arithmeticDiff ?? '', stmt.cur),
+        normalizeExportAmount(row.crf ?? '', stmt.cur),
+        normalizeExportAmount(row.rdf ?? '', stmt.cur),
       ]);
     }
     for (const tranche of stmt.trancheSummary) {
@@ -731,7 +731,7 @@ function doExport() {
         stmt.hd.stmtNum,
         tranche.tranche || '',
         tranche.qty ?? '',
-        tranche.charges ?? '',
+        normalizeExportAmount(tranche.charges ?? '', stmt.cur),
         tranche.invoiceCount ?? '',
         tranche.invoiceNos.join(', '),
       ]);
@@ -745,13 +745,13 @@ function doExport() {
         item.pid || '',
         item.pname || '',
         item.qty ?? '',
-        item.up ?? '',
-        item.expectedCharges ?? '',
-        item.charges ?? '',
-        item.priceGap ?? '',
+        normalizeExportAmount(item.up ?? '', stmt.cur),
+        normalizeExportAmount(item.expectedCharges ?? '', stmt.cur),
+        normalizeExportAmount(item.charges ?? '', stmt.cur),
+        normalizeExportAmount(item.priceGap ?? '', stmt.cur),
         item.priceGapStatus || '',
-        item.tax ?? '',
-        item.total ?? '',
+        normalizeExportAmount(item.tax ?? '', stmt.cur),
+        normalizeExportAmount(item.total ?? '', stmt.cur),
         item.srcPage ?? '',
       ]);
     }

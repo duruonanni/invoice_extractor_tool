@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.33';
+const VERSION='3.12.34';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -115,6 +115,14 @@ function isZeroDecimalCurrency(cur){
 
 function priceGapTolerance(cur){
   return isZeroDecimalCurrency(cur)?1:0.01;
+}
+
+function normalizeExportAmount(value, cur){
+  const num=Number(value);
+  if(!Number.isFinite(num))return value;
+  if(Math.abs(num)<1e-9)return 0;
+  const digits=isZeroDecimalCurrency(cur)?0:2;
+  return Number(num.toFixed(digits));
 }
 
 function computeLinePriceAudit(item,cur){
