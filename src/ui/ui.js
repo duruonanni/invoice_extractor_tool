@@ -531,7 +531,12 @@ function renderDetailTable(stmt, safeId) {
 
 function renderValidationList(stmt) {
   const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
-  const checks = stmt.vr.map(check => `
+  const rank = { f: 0, w: 1, p: 2 };
+  const sortedChecks = stmt.vr
+    .map((check, index) => ({ check, index }))
+    .sort((a, b) => (rank[a.check.sv] ?? 9) - (rank[b.check.sv] ?? 9) || a.index - b.index)
+    .map(({ check }) => check);
+  const checks = sortedChecks.map(check => `
     <div class="vi">
       <span class="vc ${check.sv === 'p' ? 'p' : check.sv === 'f' ? 'f' : 'w'}">
         ${check.sv === 'p' ? 'OK' : check.sv === 'f' ? 'ERR' : 'WARN'}
