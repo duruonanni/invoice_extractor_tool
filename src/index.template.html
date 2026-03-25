@@ -93,6 +93,7 @@ button,input,select,textarea,table,thead,tbody,tfoot,tr,th,td,summary{font:inher
 .statement-card.ok{border-left:6px solid var(--green)}
 .statement-card.warn{border-left:6px solid var(--yellow)}
 .statement-card.err{border-left:6px solid var(--red)}
+.statement-body.collapsed{display:none}
 .tw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto}
 .tb{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--border);padding:10px 12px}
 .statement-card .tb{padding:14px 16px;background:linear-gradient(180deg,#f7f9fc 0%, #f0f2f5 100%);border:none;border-bottom:1px solid var(--border)}
@@ -110,6 +111,9 @@ button,input,select,textarea,table,thead,tbody,tfoot,tr,th,td,summary{font:inher
 .issue-badge.warn{background:var(--yellow-soft);color:var(--yellow)}
 .issue-badge.err{background:var(--red-soft);color:var(--red)}
 .issue-badge.neutral{background:var(--surface-2);color:var(--text-dim)}
+.issue-link{border:none;cursor:pointer}
+.statement-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:90px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--navy);font-size:12px;font-weight:800;cursor:pointer}
+.statement-toggle:hover,.issue-link:hover{filter:brightness(.98)}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
 th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
@@ -131,6 +135,7 @@ summary{cursor:pointer;font-weight:700;margin-bottom:8px}
 .validation-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0 12px}
 .vi{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .vi:last-child{border-bottom:none}
+.vi-f{scroll-margin-top:120px}
 .vc{min-width:46px;text-align:center;border-radius:999px;padding:4px 6px;font-size:11px;font-weight:700}
 .vc.p{background:var(--green-soft);color:var(--green)}
 .vc.f{background:var(--red-soft);color:var(--red)}

@@ -328,8 +328,11 @@ function renderStatement(stmt) {
   const unmappedCount = stmt.unmS.length + stmt.unmD.length;
   const safeId = (`d_${stmt.hd.stmtNum || stmt.fileName}`).replace(/\W/g, '');
   const statusClass = issueCount ? 'err' : warningCount ? 'warn' : 'ok';
+  const errorBadge = issueCount
+    ? `<button type="button" class="issue-badge err issue-link" onclick="jumpToValidation('${safeId}', event)">${issueCount} ${t('errors')}</button>`
+    : `<div class="issue-badge neutral">0 ${t('errors')}</div>`;
   return `
-    <article class="statement-card ${statusClass}">
+    <article class="statement-card ${statusClass}" id="${safeId}-card">
       <div class="tb">
         <div class="statement-main">
           <div class="statement-num">${esc(stmt.hd.stmtNum || stmt.fileName)}</div>
@@ -343,16 +346,19 @@ function renderStatement(stmt) {
           </div>
         </div>
         <div class="issue-stack">
-          <div class="issue-badge ${issueCount ? 'err' : 'neutral'}">${issueCount} ${t('errors')}</div>
+          ${errorBadge}
           <div class="issue-badge ${warningCount ? 'warn' : 'neutral'}">${warningCount} ${t('warnings')}</div>
+          <button type="button" class="statement-toggle" id="${safeId}-toggle" aria-expanded="true" onclick="toggleStatement('${safeId}', event)">Collapse</button>
         </div>
       </div>
-      ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
-      ${renderComparisonTable(stmt)}
-      ${renderSummaryTable(stmt)}
-      ${renderTrancheSummaryTable(stmt)}
-      ${renderDetailTable(stmt, safeId)}
-      ${renderValidationList(stmt)}
+      <div class="statement-body" id="${safeId}-body">
+        ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
+        ${renderComparisonTable(stmt)}
+        ${renderSummaryTable(stmt)}
+        ${renderTrancheSummaryTable(stmt)}
+        ${renderDetailTable(stmt, safeId)}
+        ${renderValidationList(stmt, safeId)}
+      </div>
     </article>
   `;
 }
@@ -529,7 +535,7 @@ function renderDetailTable(stmt, safeId) {
   `;
 }
 
-function renderValidationList(stmt) {
+function renderValidationList(stmt, safeId) {
   const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
   const rank = { f: 0, w: 1, p: 2 };
   const sortedChecks = stmt.vr
@@ -537,7 +543,7 @@ function renderValidationList(stmt) {
     .sort((a, b) => (rank[a.check.sv] ?? 9) - (rank[b.check.sv] ?? 9) || a.index - b.index)
     .map(({ check }) => check);
   const checks = sortedChecks.map(check => `
-    <div class="vi">
+    <div class="vi ${check.sv === 'f' ? 'vi-f' : check.sv === 'w' ? 'vi-w' : 'vi-p'}">
       <span class="vc ${check.sv === 'p' ? 'p' : check.sv === 'f' ? 'f' : 'w'}">
         ${check.sv === 'p' ? 'OK' : check.sv === 'f' ? 'ERR' : 'WARN'}
       </span>
@@ -549,7 +555,7 @@ function renderValidationList(stmt) {
   `).join('');
 
   return `
-    <details ${issueCount ? 'open' : ''}>
+    <details ${issueCount ? 'open' : ''} id="${safeId}-validation">
       <summary>${t('validation')} (${stmt.vr.length} ${t('checks')}, ${issueCount} ${t('issues')})</summary>
       <div class="validation-list">${checks}</div>
     </details>
@@ -638,11 +644,40 @@ function fD(safeId, invoice, btn) {
   });
 }
 
+function toggleStatement(safeId, event) {
+  event?.stopPropagation();
+  const body = document.getElementById(`${safeId}-body`);
+  const toggle = document.getElementById(`${safeId}-toggle`);
+  if (!body || !toggle) return;
+  const collapsed = body.classList.toggle('collapsed');
+  toggle.textContent = collapsed ? 'Expand' : 'Collapse';
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+}
+
+function jumpToValidation(safeId, event) {
+  event?.stopPropagation();
+  const body = document.getElementById(`${safeId}-body`);
+  const toggle = document.getElementById(`${safeId}-toggle`);
+  const validation = document.getElementById(`${safeId}-validation`);
+  if (body?.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    if (toggle) {
+      toggle.textContent = 'Collapse';
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+  if (validation) validation.open = true;
+  const firstError = validation?.querySelector('.vi-f') || validation;
+  firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 window.swC = swC;
 window.focusCountry = focusCountry;
 window.swTab = swTab;
 window.swSub = swSub;
 window.fD = fD;
+window.toggleStatement = toggleStatement;
+window.jumpToValidation = jumpToValidation;
 
 function doExport() {
   if (!analysisResults) return;
