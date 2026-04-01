@@ -12,13 +12,14 @@ This repository does not currently store the full approved invoice PDF set.
 The regression runner looks for sample PDFs in this order:
 
 1. `INVOICE_SAMPLE_DIR`
-2. `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
-3. The legacy relative path from `fixtures.json`
+2. `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
+3. `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
+4. The legacy relative path from `fixtures.json`
 
 Recommended local location:
 
 ```text
-/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview
+/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview
 ```
 
 ## Usage

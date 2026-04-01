@@ -80,6 +80,10 @@ Regression fixtures are defined in `tests/fixtures.json`.
 
 The repository does not currently include the approved PDF samples. By default, regression looks for them at:
 
+`/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
+
+It will still fall back to the legacy path if needed:
+
 `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
 
 You can override that with `INVOICE_SAMPLE_DIR`.

@@ -72,6 +72,8 @@
   - old latest is archived to history with versioned naming
 - Regression:
   - external PDF sample root:
+    - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
+  - legacy fallback still supported:
     - `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
 - Validation/UI:
   - batch status banner
