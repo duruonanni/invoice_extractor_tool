@@ -1,21 +1,19 @@
-# Next Session Handoff
+# Session Handoff
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
-- Current version: `v3.12.36`
+- Current version: `v3.12.37`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
 - Release sync target:
   - OneDrive `.../Claude_invoice_extractor_tool/Releases/lenovo_invoice_validator_latest.html`
 - Working directory:
-  - `/Users/duruo/WorkStation/codex_invoice_extractor_tool`
+  - `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool`
 
-## Project Purpose
-- Single-file HTML tool for validating Lenovo EaaS invoice PDFs.
-- Parses multi-sales-org statement PDFs.
-- Compares `Billing Summary` vs `Detail Line Items`.
-- Detects mismatches, missing mappings, and price-gap anomalies.
-- Exports validation output to Excel.
+## Current Focus
+- Workspace migration into `Studio` is complete.
+- Project functionality has been validated after migration.
+- Future work should stay incremental and regression-driven.
 
 ## Current Coverage
 - Supported countries shown in UI: `25`
@@ -33,40 +31,7 @@
   - `AU04_STMT_BRIM_STATEMENT_EPREAUP0000931.PDF`
 - These are accepted baselines, not accidental regressions.
 
-## Parser Strategy
-- Do not split every country into a dedicated parser by default.
-- Preferred structure:
-  - dedicated parser for language-heavy or structurally unique orgs
-  - file-specific parser for special sales-org variants
-  - family parser for similar EMEA-style layouts
-  - generic fallback only where stable
-
-### Dedicated / specialized parsers already active
-- `JP`
-- `US`
-- `CH`
-- `KR`
-- `TH`
-- `AU`
-- `MY`
-- `IN`
-- File-specific:
-  - `AT01`
-  - `GB11`
-  - `NL01`
-  - `NL11`
-- Dedicated handling also exists for:
-  - `ES`
-  - `GR`
-    - `GR` is special: detail lines do not require tranche IDs; tranche summary comes from billing summary rows
-
 ## Key Behaviors Already Implemented
-- Versioning:
-  - semantic-ish rule in practice:
-    - patch for parser fixes / UI fixes / validation fixes
-    - minor for new capabilities
-    - major for breaking shifts
-  - release flow now expects version bumps before meaningful release changes
 - Release:
   - `npm run release:sync` builds and syncs latest to OneDrive
   - old latest is archived to history with versioned naming
@@ -75,39 +40,14 @@
     - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
   - legacy fallback still supported:
     - `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
-- Validation/UI:
-  - batch status banner
-  - statement cards with clearer separation
-  - statement-level collapse/expand
-  - clicking error badge jumps to validation errors
-  - validation list sorted `ERR -> WARN -> OK`
-- Export:
-  - Excel sheets aligned with UI hierarchy:
-    - `Summary`
-    - `Billing Summary`
-    - `Tranche Summary`
-    - `Detail Line Items`
-  - export filename logic:
-    - single statement: `Statement_Country_Invoice_Validator_Export_YYYYMMDD.xlsx`
-    - multi statement / multi country uses batch naming
-  - export numeric normalization removes floating point residue like `7.105e-15`
-- Billing Summary:
-  - `Payment Term` extraction supported for:
-    - `CH AT NL AU TH US HK SG CA NZ PT PH GR ES IT`
-- Detail checks:
-  - price-gap validation implemented
-  - India special handling uses taxable value logic where needed
+- Local workspace migration:
+  - active project path:
+    - `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool`
+  - regression / sample asset path:
+    - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression`
+  - old `WorkStation` / `PersonalStation` roots have been removed after migration validation
 
-## Important UI / Product Decisions
-- Tool name must stay `Lenovo EaaS Invoice Validator`
-- Coverage copy now says:
-  - `Supports 31 Sales Orgs across 25 countries ...`
-- `Validation` should surface problems first.
-- `Detail Line Items` invoice filter should show `All` first.
-- `Payment Term` is highlighted as non-price information.
-- `Arithmetic` currently remains visible in UI and Excel.
-
-## Known Special Cases
+## Special Cases To Remember
 - `GR`
   - no detail-level tranche ID; this is not an error
   - validate at invoice level
@@ -137,7 +77,7 @@
   - `tests/fixtures.json`
   - `tests/README.md`
 
-## Recommended Workflow For New Fixes
+## Workflow For The Next Change
 1. Reproduce on one concrete PDF.
 2. Determine whether it is:
    - header extraction
@@ -162,9 +102,14 @@ npm run release:sync
 npm run version:bump
 ```
 
-## Current Open Direction
+## Open Direction
 - Continue only if new PDFs reveal:
   - genuinely new sales-org layouts
   - metadata gaps
   - export/readability issues
 - Prefer not to refactor broadly unless there is a clear maintenance or correctness payoff.
+
+## Read Next Time
+- Start with `README.md` for project entry.
+- Use `DECISIONS.md` for long-lived design and workflow rules.
+- Use this file for current state and next-step continuity.

@@ -1,4 +1,4 @@
-﻿# Lenovo EaaS Invoice Validator - Design Prompt
+﻿# Lenovo EaaS Invoice Validator Product Requirements
 
 ## Product Goal
 Build a single-file, offline-capable HTML tool that validates Lenovo EaaS invoice statement PDFs across multiple Sales Orgs.
@@ -12,51 +12,6 @@ The tool should:
 - export validation results to Excel
 - remain usable as a standalone offline HTML release
 
----
-
-## Core Principles
-
-### 1. Offline First
-The final deliverable must be a single `lenovo_invoice_validator.html` file that can run locally in a browser without a server.
-
-### 2. Accuracy Before Expansion
-Do not add broader support until the current Sales Org / template is validated.
-For every parser change:
-- first confirm the target PDF behavior
-- then validate that existing known-good samples still pass
-
-### 3. Sales Org Aware Parsing
-Different Sales Orgs may use different PDF layouts.
-The parser strategy should be:
-- detect Sales Org from filename and/or document content
-- route to a specific parser when layout differences are known
-- allow finer specialization by Sold-To / customer template when needed
-
-### 4. Stable Regression-Driven Development
-A parser change is not complete unless it is verified against sample PDFs.
-Regression checks should cover:
-- invoice count
-- line item count
-- mismatch count
-- failed validation count
-- key extracted fields such as invoice number, tranche ID, product ID, and product description
-
-### 5. Preserve Working UX
-UI changes must not reduce existing usability.
-Important interaction patterns include:
-- invoice-level detail expansion/filtering
-- hierarchy-based browsing
-- country / customer grouping
-- visible validation summary
-- easy Excel export
-
-### 6. No Encoding Corruption
-All source files and final HTML must remain UTF-8 clean.
-Avoid introducing mojibake, broken punctuation, or damaged JS strings.
-If encoding risk appears, stop and fix the source before continuing feature work.
-
----
-
 ## Target Users
 Primary users are business and operations users who need to verify invoice PDFs quickly without technical setup.
 
@@ -67,6 +22,14 @@ The UI should feel:
 - low-friction for batch review
 
 ---
+
+## Product Principles
+
+- offline first
+- accuracy before coverage expansion
+- regression-driven parser changes
+- preserve working business UX
+- keep source and release files UTF-8 clean
 
 ## Functional Requirements
 
@@ -123,9 +86,7 @@ Excel export should include:
 - validation findings
 - source file references where available
 
----
-
-## Parser Architecture
+## Architecture Requirements
 
 ### Layering
 Recommended code organization:
@@ -153,9 +114,7 @@ Avoid:
 - global heuristics that affect all orgs without regression checks
 - silent fallback that hides parsing failure
 
----
-
-## AT01-Specific Design Guidance
+## AT01-Specific Requirement
 AT01 is currently treated as a baseline stabilization sample.
 
 For AT01:
@@ -174,7 +133,7 @@ Expected AT01 quality bar:
 
 ---
 
-## Regression Strategy
+## Validation And Regression Requirements
 
 ### Must-Have Baseline Samples
 Use known-good baseline samples such as:
@@ -198,9 +157,7 @@ After each bug fix:
 - confirm no parser syntax break
 - confirm no obvious UI regression
 
----
-
-## UI Design Direction
+## UI Requirements
 The UI should remain close to the prior working business layout, not become a developer-only debug screen.
 
 Desired characteristics:
@@ -213,9 +170,7 @@ Desired characteristics:
 
 Do not sacrifice familiar workflow just to simplify rendering code.
 
----
-
-## Release Policy
+## Release Requirements
 The final user-facing artifact remains:
 - `lenovo_invoice_validator.html`
 
@@ -224,17 +179,6 @@ Release rules:
 - offline usable
 - no sync to external release folders until validated
 - do not publish unstable intermediate versions
-
----
-
-## Operational Rules
-- work only inside the Codex project path unless explicitly approved otherwise
-- keep non-destructive workflow
-- stop when changes start making behavior worse
-- prefer small safe commits over large risky rewrites
-- if source baseline is corrupted, stabilize structure before expanding support
-
----
 
 ## Success Definition
 The tool is successful when:

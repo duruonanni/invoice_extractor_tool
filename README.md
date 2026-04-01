@@ -1,6 +1,21 @@
-# Codex Invoice Extractor Tool
+# Lenovo EaaS Invoice Validator
 
-Single-file HTML tool for validating Lenovo invoice PDFs locally in the browser.
+Single-file HTML tool for validating Lenovo EaaS invoice PDFs locally in the browser.
+
+## Project Role
+
+This repository is the active project workspace for the shipped validator.
+
+Use the project documents like this:
+
+- `README.md`
+  - project entry, layout, commands, and operating notes
+- `PRODUCT_REQUIREMENTS.md`
+  - product scope, parsing requirements, regression expectations, and release requirements
+- `DECISIONS.md`
+  - long-lived project decisions and rationale
+- `SESSION_HANDOFF.md`
+  - current state, current coverage, and next-session continuity
 
 ## Project Layout
 
@@ -14,6 +29,12 @@ Single-file HTML tool for validating Lenovo invoice PDFs locally in the browser.
 - `docs/`: user manual and manual assets
 - `archive/`: legacy or one-off scripts kept for reference, not part of the main workflow
 
+## Current Status
+
+- migration to `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool` is complete
+- current shipped version in source: `v3.12.37`
+- project functionality has been verified after migration
+
 ## Daily Commands
 
 ```bash
@@ -25,6 +46,15 @@ node --check src/core/core.js
 node --check src/parsers/parsers.js
 node --check src/ui/ui.js
 ```
+
+## Standard Working Flow
+
+1. Read `SESSION_HANDOFF.md` before continuing active work.
+2. Reproduce against one concrete PDF.
+3. Fix as narrowly as possible.
+4. Run `npm run check`, `npm run regression`, and `npm run build`.
+5. Run `npm run release:sync` only after the release is intentionally ready.
+6. Update `SESSION_HANDOFF.md` if the current state materially changed.
 
 ## Build Output
 
@@ -40,7 +70,7 @@ node --check src/ui/ui.js
 
 ## Release Versioning
 
-The shipped tool version lives in [`src/core/core.js`](/Users/duruo/WorkStation/codex_invoice_extractor_tool/src/core/core.js) as:
+The shipped tool version lives in [`src/core/core.js`](/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool/src/core/core.js) as:
 
 `const VERSION='major.minor.patch'`
 
@@ -95,3 +125,4 @@ See `tests/README.md` for the sample-data convention.
 - Keep parser changes small and regression-driven.
 - Treat files under `archive/` as historical utilities unless they are deliberately promoted back into the active workflow.
 - Git post-commit sync uses `.githooks/post-commit` on Unix-like systems and `.githooks/post-commit.cmd` on Windows.
+- Project-specific design and workflow rules belong in `DECISIONS.md`, not in the handoff file unless they are part of the current state.
