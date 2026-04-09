@@ -2,7 +2,7 @@
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
-- Current version: `v3.12.37`
+- Current version: `v3.12.38`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
 - Release sync target:
@@ -14,6 +14,10 @@
 - Workspace migration into `Studio` is complete.
 - Project functionality has been validated after migration.
 - Future work should stay incremental and regression-driven.
+- Error-review UI now supports an error-focused detail mode:
+  - root-level error invoice chips for statements with row-level issues
+  - `Detail Line Items` defaults to `Errors only` when row-level issues exist
+  - `Show all` restores full invoice chips and full detail rows
 
 ## Current Coverage
 - Supported countries shown in UI: `25`

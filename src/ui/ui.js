@@ -327,12 +327,13 @@ function renderStatement(stmt) {
   const period = stmt.hd.period || 'Unknown';
   const unmappedCount = stmt.unmS.length + stmt.unmD.length;
   const safeId = (`d_${stmt.hd.stmtNum || stmt.fileName}`).replace(/\W/g, '');
+  const errorFocus = getStatementErrorFocus(stmt);
   const statusClass = issueCount ? 'err' : warningCount ? 'warn' : 'ok';
   const errorBadge = issueCount
-    ? `<button type="button" class="issue-badge err issue-link" onclick="jumpToValidation('${safeId}', event)">${issueCount} ${t('errors')}</button>`
+    ? `<button type="button" class="issue-badge err issue-link" onclick="jumpToPrimaryIssue('${safeId}', event)">${issueCount} ${t('errors')}</button>`
     : `<div class="issue-badge neutral">0 ${t('errors')}</div>`;
   return `
-    <article class="statement-card ${statusClass}" id="${safeId}-card">
+    <article class="statement-card ${statusClass} ${errorFocus.hasRowIssues ? 'focus-mode' : ''}" id="${safeId}-card">
       <div class="tb">
         <div class="statement-main">
           <div class="statement-num">${esc(stmt.hd.stmtNum || stmt.fileName)}</div>
@@ -351,19 +352,68 @@ function renderStatement(stmt) {
           <button type="button" class="statement-toggle" id="${safeId}-toggle" aria-expanded="true" onclick="toggleStatement('${safeId}', event)">Collapse</button>
         </div>
       </div>
+      ${renderErrorInvoiceStrip(stmt, safeId, errorFocus)}
       <div class="statement-body" id="${safeId}-body">
         ${unmappedCount ? `<div class="ib w" style="margin:10px 0">${unmappedCount} ${t('unmapped')}</div>` : ''}
-        ${renderComparisonTable(stmt)}
-        ${renderSummaryTable(stmt)}
-        ${renderTrancheSummaryTable(stmt)}
-        ${renderDetailTable(stmt, safeId)}
-        ${renderValidationList(stmt, safeId)}
+        ${renderComparisonTable(stmt, safeId, errorFocus)}
+        ${renderSummaryTable(stmt, safeId, errorFocus)}
+        ${renderTrancheSummaryTable(stmt, safeId, errorFocus)}
+        ${renderDetailTable(stmt, safeId, errorFocus)}
+        ${renderValidationList(stmt, safeId, errorFocus)}
       </div>
     </article>
   `;
 }
 
-function renderComparisonTable(stmt) {
+function getStatementErrorFocus(stmt) {
+  const issueRows = [];
+  const invoiceCounts = new Map();
+  let firstRowIndex = -1;
+
+  stmt.li.forEach((item, index) => {
+    if (!item.priceGapAnomaly) return;
+    issueRows.push({ item, index });
+    if (firstRowIndex < 0) firstRowIndex = index;
+    const inv = String(item.inv || '').trim();
+    if (!inv) return;
+    if (!invoiceCounts.has(inv)) invoiceCounts.set(inv, 0);
+    invoiceCounts.set(inv, invoiceCounts.get(inv) + 1);
+  });
+
+  const invoices = [...invoiceCounts.keys()];
+  return {
+    hasRowIssues: issueRows.length > 0,
+    rowCount: issueRows.length,
+    invoiceCount: invoices.length,
+    invoices,
+    invoiceCounts,
+    firstRowIndex,
+  };
+}
+
+function renderErrorInvoiceStrip(stmt, safeId, errorFocus) {
+  if (!errorFocus.hasRowIssues) return '';
+  return `
+    <div class="statement-focus-strip">
+      <div class="statement-focus-copy">
+        <strong>Error invoices</strong>
+        <span>${errorFocus.invoiceCount} invoice${errorFocus.invoiceCount > 1 ? 's' : ''} · ${errorFocus.rowCount} detail line issue${errorFocus.rowCount > 1 ? 's' : ''}</span>
+      </div>
+      <div class="statement-focus-actions">
+        ${errorFocus.invoices.map(inv => `
+          <button
+            type="button"
+            class="focus-chip"
+            title="${esc(inv)} · ${errorFocus.invoiceCounts.get(inv)} issue row(s)"
+            onclick="focusStatementErrors('${safeId}','${esc(inv)}', event)"
+          >${esc(inv)}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderComparisonTable(stmt, safeId, errorFocus) {
   const rows = stmt.comp.map(row => `
     <tr class="${row.st !== 'matched' ? 'ro' : ''}">
       <td class="mono">${esc(row.inv)}</td>
@@ -382,7 +432,7 @@ function renderComparisonTable(stmt) {
     </tr>
   `).join('');
 
-  return `
+  const tableHtml = `
     <div class="tw">
       <table>
         <thead>
@@ -406,9 +456,20 @@ function renderComparisonTable(stmt) {
       </table>
     </div>
   `;
+
+  if (!errorFocus.hasRowIssues) {
+    return tableHtml;
+  }
+
+  return `
+    <details id="${safeId}-comparison">
+      <summary>${t('comparison')} (${stmt.comp.length})</summary>
+      ${tableHtml}
+    </details>
+  `;
 }
 
-function renderSummaryTable(stmt) {
+function renderSummaryTable(stmt, safeId, errorFocus) {
   const hasFee = stmt.bs.some(row => row.crf || row.rdf);
   const hasPaymentTerm = stmt.bs.some(row => String(row.paymentTerm || '').trim());
   const hasArithmetic = stmt.bs.some(row => row.arithmeticStatus || row.arithmeticDiff !== undefined);
@@ -425,7 +486,7 @@ function renderSummaryTable(stmt) {
   `).join('');
 
   return `
-    <details>
+    <details id="${safeId}-summary">
       <summary>${t('billing_sum')} (${stmt.bs.length})</summary>
       <div class="tw">
         <table>
@@ -447,7 +508,7 @@ function renderSummaryTable(stmt) {
   `;
 }
 
-function renderTrancheSummaryTable(stmt) {
+function renderTrancheSummaryTable(stmt, safeId, errorFocus) {
   const rows = stmt.trancheSummary.map(row => `
     <tr>
       <td class="mono">${esc(row.tranche || '')}</td>
@@ -459,7 +520,7 @@ function renderTrancheSummaryTable(stmt) {
   `).join('');
 
   return `
-    <details>
+    <details id="${safeId}-tranche">
       <summary>${t('tranche_summary')} (${stmt.trancheSummary.length})</summary>
       <div class="tw">
         <table>
@@ -479,11 +540,25 @@ function renderTrancheSummaryTable(stmt) {
   `;
 }
 
-function renderDetailTable(stmt, safeId) {
+function renderDetailTable(stmt, safeId, errorFocus) {
   const invoices = [...new Set(stmt.li.map(item => item.inv))].sort();
   const hasCrf = stmt.li.some(item => item.crfRdf);
-  const rows = stmt.li.map(item => `
-    <tr data-inv="${esc(item.inv)}" class="${item.priceGapAnomaly ? 'ra' : ''}">
+  const rows = stmt.li.map((item, index) => {
+    const rowId = `${safeId}-row-${index}`;
+    const isErrorRow = !!item.priceGapAnomaly;
+    const rowClass = [
+      isErrorRow ? 'ra error-row' : '',
+      errorFocus.hasRowIssues && !isErrorRow ? 'row-muted' : '',
+      errorFocus.firstRowIndex === index ? 'row-focus' : '',
+    ].filter(Boolean).join(' ');
+    const hidden = errorFocus.hasRowIssues && !isErrorRow ? ' style="display:none"' : '';
+    return `
+    <tr
+      id="${rowId}"
+      data-inv="${esc(item.inv)}"
+      data-error-row="${isErrorRow ? '1' : '0'}"
+      class="${rowClass}"${hidden}
+    >
       <td class="mono">${esc(item.inv)}</td>
       <td class="mono">${esc(item.tranche || '')}</td>
       <td class="mono">${esc(item.pid || '')}</td>
@@ -499,17 +574,31 @@ function renderDetailTable(stmt, safeId) {
       <td class="tr mono">${fc(item.total || 0, stmt.cur)}</td>
       <td class="tr mono">${item.srcPage || ''}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   return `
-    <details>
+    <details id="${safeId}-detail" ${errorFocus.hasRowIssues ? 'open' : ''}>
       <summary>${t('detail_items')} (${stmt.li.length})</summary>
       <div class="filter-row">
-        <button class="btn btn-s a" onclick="fD('${safeId}','ALL',this)">All</button>
-        ${invoices.map(inv => `<button class="btn btn-s" onclick="fD('${safeId}','${esc(inv)}',this)">${esc(inv)}</button>`).join('')}
+        ${errorFocus.hasRowIssues
+          ? `<button class="btn btn-s btn-show-all" data-filter-role="show-all" onclick="showAllStatementDetails('${safeId}', event)">Show all</button>`
+          : `<button class="btn btn-s a" data-filter-role="invoice" data-invoice="ALL" onclick="fD('${safeId}','ALL',this)">All</button>`
+        }
+        ${errorFocus.hasRowIssues ? `<button class="btn btn-s btn-focus a" data-filter-role="errors" onclick="focusStatementErrors('${safeId}','ALL', event)">Errors only (${errorFocus.rowCount})</button>` : ''}
+        ${invoices.map(inv => `
+          <button
+            class="btn btn-s ${errorFocus.invoiceCounts.has(inv) ? 'btn-err-invoice' : ''}"
+            data-filter-role="invoice"
+            data-invoice="${esc(inv)}"
+            data-has-error="${errorFocus.invoiceCounts.has(inv) ? '1' : '0'}"
+            ${errorFocus.hasRowIssues && !errorFocus.invoiceCounts.has(inv) ? 'style="display:none"' : ''}
+            onclick="fD('${safeId}','${esc(inv)}',this)"
+          >${esc(inv)}</button>
+        `).join('')}
       </div>
       <div class="tw">
-        <table id="${safeId}">
+        <table id="${safeId}" data-current-invoice="ALL" data-errors-only="${errorFocus.hasRowIssues ? '1' : '0'}">
           <thead>
             <tr>
               <th>${t('invoice')}</th>
@@ -535,7 +624,7 @@ function renderDetailTable(stmt, safeId) {
   `;
 }
 
-function renderValidationList(stmt, safeId) {
+function renderValidationList(stmt, safeId, errorFocus) {
   const issueCount = stmt.vr.filter(check => check.sv === 'f').length;
   const rank = { f: 0, w: 1, p: 2 };
   const sortedChecks = stmt.vr
@@ -555,7 +644,7 @@ function renderValidationList(stmt, safeId) {
   `).join('');
 
   return `
-    <details ${issueCount ? 'open' : ''} id="${safeId}-validation">
+    <details ${issueCount && !errorFocus.hasRowIssues ? 'open' : ''} id="${safeId}-validation">
       <summary>${t('validation')} (${stmt.vr.length} ${t('checks')}, ${issueCount} ${t('issues')})</summary>
       <div class="validation-list">${checks}</div>
     </details>
@@ -635,12 +724,36 @@ function swSub(code, index, total) {
 }
 
 function fD(safeId, invoice, btn) {
+  applyDetailFilter(safeId, invoice, false);
+  updateDetailFilterControls(safeId, invoice, false);
+  document.getElementById(`${safeId}-card`)?.classList.remove('focus-mode');
+}
+
+function applyDetailFilter(safeId, invoice, errorsOnly) {
   const table = document.getElementById(safeId);
   if (!table) return;
-  btn.parentElement.querySelectorAll('.btn').forEach(button => button.classList.remove('a'));
-  btn.classList.add('a');
+  table.dataset.currentInvoice = invoice;
+  table.dataset.errorsOnly = errorsOnly ? '1' : '0';
   table.querySelectorAll('tbody tr').forEach(row => {
-    row.style.display = invoice === 'ALL' || row.dataset.inv === invoice ? '' : 'none';
+    const invoiceOk = invoice === 'ALL' || row.dataset.inv === invoice;
+    const errorOk = !errorsOnly || row.dataset.errorRow === '1';
+    row.style.display = invoiceOk && errorOk ? '' : 'none';
+  });
+}
+
+function updateDetailFilterControls(safeId, invoice, errorsOnly) {
+  const filterRow = document.querySelector(`#${safeId}-detail .filter-row`);
+  if (!filterRow) return;
+  filterRow.querySelectorAll('[data-filter-role="invoice"]').forEach(button => {
+    const hasError = button.dataset.hasError === '1';
+    button.classList.toggle('a', button.dataset.invoice === invoice);
+    button.style.display = !errorsOnly || hasError ? '' : 'none';
+  });
+  filterRow.querySelectorAll('[data-filter-role="errors"]').forEach(button => {
+    button.classList.toggle('a', errorsOnly);
+  });
+  filterRow.querySelectorAll('[data-filter-role="show-all"]').forEach(button => {
+    button.classList.toggle('a', !errorsOnly && invoice === 'ALL');
   });
 }
 
@@ -652,6 +765,58 @@ function toggleStatement(safeId, event) {
   const collapsed = body.classList.toggle('collapsed');
   toggle.textContent = collapsed ? 'Expand' : 'Collapse';
   toggle.setAttribute('aria-expanded', String(!collapsed));
+}
+
+function clearFocusedRow(safeId) {
+  document.querySelectorAll(`#${safeId} tbody tr.row-focus`).forEach(row => row.classList.remove('row-focus'));
+}
+
+function focusTableRow(row) {
+  if (!row) return;
+  row.classList.add('row-focus');
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function setSectionOpen(id, open) {
+  const section = document.getElementById(id);
+  if (section) section.open = open;
+}
+
+function enterStatementFocusMode(safeId) {
+  document.getElementById(`${safeId}-card`)?.classList.add('focus-mode');
+  setSectionOpen(`${safeId}-detail`, true);
+  setSectionOpen(`${safeId}-comparison`, false);
+  setSectionOpen(`${safeId}-summary`, false);
+  setSectionOpen(`${safeId}-tranche`, false);
+}
+
+function focusStatementErrors(safeId, invoice, event) {
+  event?.stopPropagation();
+  const body = document.getElementById(`${safeId}-body`);
+  const toggle = document.getElementById(`${safeId}-toggle`);
+  if (body?.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    if (toggle) {
+      toggle.textContent = 'Collapse';
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+  enterStatementFocusMode(safeId);
+  clearFocusedRow(safeId);
+  applyDetailFilter(safeId, invoice, true);
+  updateDetailFilterControls(safeId, invoice, true);
+  const target = invoice === 'ALL'
+    ? document.querySelector(`#${safeId} tbody tr[data-error-row="1"]`)
+    : document.querySelector(`#${safeId} tbody tr[data-inv="${invoice}"][data-error-row="1"]`) || document.querySelector(`#${safeId} tbody tr[data-inv="${invoice}"]`);
+  focusTableRow(target);
+}
+
+function showAllStatementDetails(safeId, event) {
+  event?.stopPropagation();
+  clearFocusedRow(safeId);
+  applyDetailFilter(safeId, 'ALL', false);
+  updateDetailFilterControls(safeId, 'ALL', false);
+  document.getElementById(`${safeId}-card`)?.classList.remove('focus-mode');
 }
 
 function jumpToValidation(safeId, event) {
@@ -671,13 +836,26 @@ function jumpToValidation(safeId, event) {
   firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function jumpToPrimaryIssue(safeId, event) {
+  const table = document.getElementById(safeId);
+  const hasErrorRows = table?.querySelector('tbody tr[data-error-row="1"]');
+  if (hasErrorRows) {
+    focusStatementErrors(safeId, 'ALL', event);
+    return;
+  }
+  jumpToValidation(safeId, event);
+}
+
 window.swC = swC;
 window.focusCountry = focusCountry;
 window.swTab = swTab;
 window.swSub = swSub;
 window.fD = fD;
 window.toggleStatement = toggleStatement;
+window.focusStatementErrors = focusStatementErrors;
+window.showAllStatementDetails = showAllStatementDetails;
 window.jumpToValidation = jumpToValidation;
+window.jumpToPrimaryIssue = jumpToPrimaryIssue;
 
 function doExport() {
   if (!analysisResults) return;

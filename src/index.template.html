@@ -93,6 +93,7 @@ button,input,select,textarea,table,thead,tbody,tfoot,tr,th,td,summary{font:inher
 .statement-card.ok{border-left:6px solid var(--green)}
 .statement-card.warn{border-left:6px solid var(--yellow)}
 .statement-card.err{border-left:6px solid var(--red)}
+.statement-card.focus-mode{box-shadow:0 12px 28px rgba(191,32,24,.10)}
 .statement-body.collapsed{display:none}
 .tw{background:var(--surface);border:1px solid var(--border);border-top:none;overflow:auto}
 .tb{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--border);padding:10px 12px}
@@ -114,6 +115,14 @@ button,input,select,textarea,table,thead,tbody,tfoot,tr,th,td,summary{font:inher
 .issue-link{border:none;cursor:pointer}
 .statement-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:90px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--navy);font-size:12px;font-weight:800;cursor:pointer}
 .statement-toggle:hover,.issue-link:hover{filter:brightness(.98)}
+.statement-focus-strip{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fff7e6 0%, #fffdf8 100%)}
+.statement-focus-copy{display:flex;flex-direction:column;gap:4px}
+.statement-focus-copy strong{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--red)}
+.statement-focus-copy span{color:var(--text-dim);font-size:12px}
+.statement-focus-actions{display:flex;gap:8px;flex-wrap:wrap}
+.focus-chip{border:1px solid #f3b7b2;background:#fff;color:var(--red);padding:7px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:800}
+.focus-chip:hover{background:#fff5f4}
+.focus-chip.secondary{border-color:var(--border);color:var(--navy)}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
 th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
@@ -127,9 +136,16 @@ th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;let
 .mono{font-family:"SFMono-Regular",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
 .ro td{background:var(--accent-soft)}
 .ra td{background:var(--yellow-soft)}
+.row-focus td{background:#fff1bf !important;box-shadow:inset 0 1px 0 #f0c419,inset 0 -1px 0 #f0c419}
 .tg{color:var(--green)}
 .tre{color:var(--red)}
 .td{color:var(--text-dim)}
+.btn-s.btn-focus{background:#fff3f1;border-color:#f1b4af;color:var(--red)}
+.btn-s.btn-focus.a{background:var(--red);border-color:var(--red);color:#fff}
+.btn-s.btn-show-all{background:#eef3ff;border-color:#cfdcf9;color:var(--navy)}
+.btn-s.btn-show-all.a{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn-s.btn-err-invoice{border-color:#f1b4af;background:#fff5f4;color:var(--red)}
+.btn-s.btn-err-invoice.a{background:var(--red);border-color:var(--red);color:#fff}
 details{margin-top:12px}
 summary{cursor:pointer;font-weight:700;margin-bottom:8px}
 .validation-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0 12px}
@@ -149,6 +165,7 @@ summary{cursor:pointer;font-weight:700;margin-bottom:8px}
   .bs-side{white-space:normal}
   .statement-num{font-size:20px}
   .statement-main{align-items:flex-start}
+  .statement-focus-strip{padding:12px 14px}
 }
 </style>
 </head>

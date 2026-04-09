@@ -32,7 +32,7 @@ Use the project documents like this:
 ## Current Status
 
 - migration to `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool` is complete
-- current shipped version in source: `v3.12.37`
+- current shipped version in source: `v3.12.38`
 - project functionality has been verified after migration
 
 ## Daily Commands
