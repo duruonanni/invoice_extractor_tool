@@ -58,3 +58,30 @@ Record long-lived project decisions here so they do not keep expanding the sessi
   - `AU04_STMT_BRIM_STATEMENT_EPREAUP0000931.PDF`
 - Consequence:
   - Regression interpretation should account for these known exceptions.
+
+## 2026-04-09 - Default OneDrive Release Should Follow The Commit Path
+
+- Status: Active
+- Context:
+  - The project already has a post-commit hook that runs `scripts/release_sync.mjs`.
+  - Running `release:sync` manually before commit duplicates work and creates unnecessary workflow branching.
+- Decision:
+  - Unless the user explicitly asks for a pre-commit release action, treat the normal commit flow as the default OneDrive release path.
+  - In normal operation: verify, commit, let the post-commit hook build and sync the release.
+- Consequence:
+  - Do not manually run `npm run release:sync` before commit by default.
+  - Manual pre-commit release remains allowed only when the user explicitly requests it.
+
+## 2026-04-13 - Multi-Country Review Defaults To Issue-Focused Country Visibility
+
+- Status: Active
+- Context:
+  - Large multi-country batches can overwhelm reviewers when many countries have no issues.
+  - Users need a faster way to focus on countries that require action while keeping a one-click way to inspect all countries.
+- Decision:
+  - When multiple countries are present, default the country-level UI scope to countries with `failed checks` only.
+  - Provide a dedicated toggle button to switch between issue-focused view and all-countries view.
+  - Keep this filter in the country summary cards, country tabs, and hierarchy table, and visually highlight the country filter strip.
+- Consequence:
+  - Reviewers land in a focused default view without losing complete coverage visibility.
+  - Single-country batches or all-clear batches continue to show full content without forced filtering.

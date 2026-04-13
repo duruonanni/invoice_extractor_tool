@@ -53,8 +53,9 @@ node --check src/ui/ui.js
 2. Reproduce against one concrete PDF.
 3. Fix as narrowly as possible.
 4. Run `npm run check`, `npm run regression`, and `npm run build`.
-5. Run `npm run release:sync` only after the release is intentionally ready.
-6. Update `SESSION_HANDOFF.md` if the current state materially changed.
+5. If the release is intentionally ready, commit the change set.
+6. Let the git post-commit hook run `release:sync` by default.
+7. Update `SESSION_HANDOFF.md` if the current state materially changed.
 
 ## Build Output
 
@@ -90,7 +91,9 @@ Before a real release:
 
 1. Bump the release version.
 2. Run regression and any targeted validation for the changed invoices.
-3. Run `npm run release:sync`.
+3. Commit the intended release by default so the post-commit hook runs `release:sync`.
+
+Run `npm run release:sync` manually only when an explicit pre-commit release step is required.
 
 You can bump the patch version automatically with:
 
@@ -125,4 +128,5 @@ See `tests/README.md` for the sample-data convention.
 - Keep parser changes small and regression-driven.
 - Treat files under `archive/` as historical utilities unless they are deliberately promoted back into the active workflow.
 - Git post-commit sync uses `.githooks/post-commit` on Unix-like systems and `.githooks/post-commit.cmd` on Windows.
+- Default OneDrive publishing should follow the commit path; do not manually pre-run `release:sync` unless explicitly requested.
 - Project-specific design and workflow rules belong in `DECISIONS.md`, not in the handoff file unless they are part of the current state.

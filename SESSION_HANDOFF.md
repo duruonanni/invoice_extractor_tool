@@ -18,6 +18,12 @@
   - root-level error invoice chips for statements with row-level issues
   - `Detail Line Items` defaults to `Errors only` when row-level issues exist
   - `Show all` restores full invoice chips and full detail rows
+- Multi-country country-level filter behavior:
+  - default view shows only countries with issue signals when multiple countries are present
+  - issue signals currently use `failed checks` only
+  - `Show all countries` toggles back to the full country list
+  - the country tab/filter strip is visually highlighted for discoverability
+  - when all countries are shown, countries with issues are visually highlighted in country cards and country tabs
 
 ## Current Coverage
 - Supported countries shown in UI: `25`
@@ -39,6 +45,8 @@
 - Release:
   - `npm run release:sync` builds and syncs latest to OneDrive
   - old latest is archived to history with versioned naming
+  - default publish path is commit-driven via `.githooks/post-commit`
+  - do not manually pre-run `release:sync` unless explicitly requested
 - Regression:
   - external PDF sample root:
     - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
@@ -94,8 +102,8 @@
    - `npm run check`
    - `npm run regression`
    - `npm run build`
-   - `npm run release:sync`
 6. Commit after verification.
+7. Let post-commit release sync publish to OneDrive unless a manual pre-commit release was explicitly requested.
 
 ## Useful Commands
 ```bash
