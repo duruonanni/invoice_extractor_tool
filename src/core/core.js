@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.38';
+const VERSION='3.12.39';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -69,7 +69,12 @@ const I={
     ok:'OK',
     error:'ERROR',
     pass:'PASS',
-    fail:'FAIL'
+    fail:'FAIL',
+    country_filter_all:'Showing all countries',
+    country_filter_issue_only:'Showing issue countries only',
+    country_filter_hidden:'hidden',
+    country_filter_show_all:'Show all countries',
+    country_filter_show_issue_only:'Show issue countries only'
   },
   zh:{},
   es:{}

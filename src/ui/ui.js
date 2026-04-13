@@ -10,6 +10,7 @@ const progressLabelEl = document.getElementById('plab');
 const summaryWrapEl = document.getElementById('gSum');
 const cardsEl = document.getElementById('gCards');
 const resultsEl = document.getElementById('results');
+let countryFilterShowAllOverride = null;
 
 dzEl.addEventListener('click', () => fInEl.click());
 dzEl.addEventListener('dragover', e => {
@@ -78,6 +79,7 @@ function removeFile(id) {
 function clearAll() {
   fileEntries = [];
   analysisResults = null;
+  countryFilterShowAllOverride = null;
   fileListEl.innerHTML = '';
   resultsEl.innerHTML = '';
   cardsEl.innerHTML = '';
@@ -91,6 +93,7 @@ function rebuildAnalysisResults() {
   const ready = fileEntries.filter(entry => entry.status === 'ready');
   if (!ready.length) {
     analysisResults = null;
+    countryFilterShowAllOverride = null;
     resultsEl.innerHTML = '';
     cardsEl.innerHTML = '';
     summaryWrapEl.style.display = 'none';
@@ -98,6 +101,7 @@ function rebuildAnalysisResults() {
     return;
   }
   analysisResults = {};
+  countryFilterShowAllOverride = null;
   for (const entry of ready) {
     try {
       const statement = parseStatement(entry.lines || [], entry.name);
@@ -165,6 +169,7 @@ async function runAll() {
   cardsEl.innerHTML = '';
   summaryWrapEl.style.display = 'none';
   analysisResults = {};
+  countryFilterShowAllOverride = null;
 
   setProg(2, t('starting'));
 
@@ -208,26 +213,29 @@ function renderResults() {
     resultsEl.innerHTML = '<div class="ib w">No parsed statements.</div>';
     return;
   }
+  const countrySummary = buildCountrySummary(countries);
+  const issueCountries = countries.filter(code => countrySummary[code].hasIssues);
+  const canFilterCountries = countries.length > 1 && issueCountries.length > 0 && issueCountries.length < countries.length;
+  const showAllCountries = canFilterCountries
+    ? (countryFilterShowAllOverride === null ? false : countryFilterShowAllOverride)
+    : true;
+  const visibleCountries = showAllCountries ? countries : issueCountries;
+  const hiddenCountryCount = countries.length - visibleCountries.length;
   const statements = Object.values(analysisResults).flatMap(group => group.stmts);
   const batchIssueCount = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length, 0);
   const batchWarningCount = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'w').length, 0);
   const batchUnmappedCount = statements.reduce((sum, stmt) => sum + stmt.unmS.length + stmt.unmD.length, 0);
   const batchPriceGapCount = statements.reduce((sum, stmt) => sum + stmt.priceGapIssues.length, 0);
 
-  cardsEl.innerHTML = countries.map((code, index) => {
+  cardsEl.innerHTML = visibleCountries.map((code, index) => {
     const group = analysisResults[code];
-    const invCount = group.stmts.reduce((sum, stmt) => sum + stmt.bs.length, 0);
-    const itemCount = group.stmts.reduce((sum, stmt) => sum + stmt.li.length, 0);
-    const issueCount = group.stmts.reduce(
-      (sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length,
-      0
-    );
-    const unmappedCount = group.stmts.reduce(
-      (sum, stmt) => sum + stmt.unmS.length + stmt.unmD.length,
-      0
-    );
+    const invCount = countrySummary[code].invoices;
+    const itemCount = countrySummary[code].items;
+    const issueCount = countrySummary[code].issues;
+    const unmappedCount = countrySummary[code].unmapped;
+    const issueCountryClass = issueCount > 0 ? 'issue-country' : '';
     return `
-      <div class="gc ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="focusCountry('${esc(code)}')">
+      <div class="gc ${issueCountryClass} ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="focusCountry('${esc(code)}')">
         <div class="gc-f">${esc(group.meta.flag)}</div>
         <div class="gc-n">${esc(group.meta.label)} (${esc(code)})</div>
         <div class="gc-r"><span>${t('stmts')}</span><span class="gc-v">${group.stmts.length}</span></div>
@@ -247,16 +255,52 @@ function renderResults() {
     unmapped: batchUnmappedCount,
     priceGapIssues: batchPriceGapCount,
   });
+  html += `
+    <div class="country-filter-strip">
+      <div class="country-filter-label">
+        ${showAllCountries
+          ? `${t('country_filter_all')} (${visibleCountries.length}/${countries.length})`
+          : `${t('country_filter_issue_only')} (${visibleCountries.length}/${countries.length})`}
+        ${hiddenCountryCount > 0 ? ` · ${hiddenCountryCount} ${t('country_filter_hidden')}` : ''}
+      </div>
+      ${canFilterCountries
+        ? `<button type="button" class="btn btn-s country-filter-btn" onclick="toggleCountryFilterMode()">${showAllCountries ? t('country_filter_show_issue_only') : t('country_filter_show_all')}</button>`
+        : ''}
+    </div>
+  `;
   html += `<div class="tabs"><button class="tab a" id="tab-hier" onclick="swTab('hier')">${t('hierarchy')}</button>`;
-  for (const code of countries) {
-    html += `<button class="tab" id="tab-${esc(code)}" onclick="swTab('${esc(code)}');swC('${esc(code)}')">${esc(analysisResults[code].meta.flag)} ${esc(code)}</button>`;
+  for (const code of visibleCountries) {
+    const issueTabClass = countrySummary[code].issues > 0 ? 'issue-country' : '';
+    html += `<button class="tab ${issueTabClass}" id="tab-${esc(code)}" onclick="swTab('${esc(code)}');swC('${esc(code)}')">${esc(analysisResults[code].meta.flag)} ${esc(code)}</button>`;
   }
   html += `</div>`;
-  html += `<div class="tp a" id="tp-hier">${renderHierarchy()}</div>`;
-  for (const code of countries) {
+  html += `<div class="tp a" id="tp-hier">${renderHierarchy(visibleCountries)}</div>`;
+  for (const code of visibleCountries) {
     html += `<div class="tp" id="tp-${esc(code)}">${renderCountrySection(code)}</div>`;
   }
   resultsEl.innerHTML = html;
+}
+
+function buildCountrySummary(countries) {
+  const summary = {};
+  for (const code of countries) {
+    const group = analysisResults[code];
+    const statements = group.stmts;
+    const issues = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length, 0);
+    const warnings = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'w').length, 0);
+    const unmapped = statements.reduce((sum, stmt) => sum + stmt.unmS.length + stmt.unmD.length, 0);
+    const priceGapIssues = statements.reduce((sum, stmt) => sum + stmt.priceGapIssues.length, 0);
+    summary[code] = {
+      issues,
+      warnings,
+      unmapped,
+      priceGapIssues,
+      hasIssues: issues > 0,
+      invoices: statements.reduce((sum, stmt) => sum + stmt.bs.length, 0),
+      items: statements.reduce((sum, stmt) => sum + stmt.li.length, 0),
+    };
+  }
+  return summary;
 }
 
 function renderBatchStatus(summary) {
@@ -651,9 +695,9 @@ function renderValidationList(stmt, safeId, errorFocus) {
   `;
 }
 
-function renderHierarchy() {
+function renderHierarchy(codes) {
   const rows = [];
-  for (const code of Object.keys(analysisResults).sort()) {
+  for (const code of codes) {
     const group = analysisResults[code];
     const invCount = group.stmts.reduce((sum, stmt) => sum + stmt.bs.length, 0);
     const itemCount = group.stmts.reduce((sum, stmt) => sum + stmt.li.length, 0);
@@ -695,6 +739,18 @@ function renderHierarchy() {
       </table>
     </div>
   `;
+}
+
+function toggleCountryFilterMode() {
+  if (!analysisResults) return;
+  const countries = Object.keys(analysisResults).sort();
+  const countrySummary = buildCountrySummary(countries);
+  const issueCountries = countries.filter(code => countrySummary[code].hasIssues);
+  const canFilterCountries = countries.length > 1 && issueCountries.length > 0 && issueCountries.length < countries.length;
+  if (!canFilterCountries) return;
+  const currentlyShowAll = countryFilterShowAllOverride === null ? false : countryFilterShowAllOverride;
+  countryFilterShowAllOverride = !currentlyShowAll;
+  renderResults();
 }
 
 function swC(code) {
