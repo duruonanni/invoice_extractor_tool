@@ -24,6 +24,12 @@
   - `Show all countries` toggles back to the full country list
   - the country tab/filter strip is visually highlighted for discoverability
   - when all countries are shown, countries with issues are visually highlighted in country cards and country tabs
+- Lenovo-style UI iteration (v3.12.40 candidate):
+  - updated template tokens and typography to a Lenovo-aligned baseline
+  - reduced page max width to improve scan readability for dense review tables
+  - added keyboard/ARIA support to upload zone and country summary cards
+  - added visible focus styles across major interactive controls
+  - moved `price gap anomalies` text to i18n key usage
 
 ## Current Coverage
 - Supported countries shown in UI: `25`

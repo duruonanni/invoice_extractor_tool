@@ -1,5 +1,5 @@
 ﻿pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const VERSION='3.12.39';
+const VERSION='3.12.40';
 document.getElementById('verTag').textContent='v'+VERSION;
 
 const I={
@@ -74,14 +74,24 @@ const I={
     country_filter_issue_only:'Showing issue countries only',
     country_filter_hidden:'hidden',
     country_filter_show_all:'Show all countries',
-    country_filter_show_issue_only:'Show issue countries only'
+    country_filter_show_issue_only:'Show issue countries only',
+    price_gap_anomalies:'price gap anomalies',
+    drop_zone_aria:'Upload Lenovo EaaS invoice PDFs'
   },
   zh:{},
   es:{}
 };
 let curLang='en';
 function t(k){return I[curLang][k]||I.en[k]||k}
-function setLang(l){curLang=l;document.querySelectorAll('[data-t]').forEach(el=>{const k=el.dataset.t;if(I[l][k])el.textContent=I[l][k]});if(analysisResults)renderResults()}
+function setLang(l){
+  curLang=l;
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const k=el.dataset.t;
+    if(I[l][k])el.textContent=I[l][k];
+  });
+  if(window.refreshUiLanguageLabels)window.refreshUiLanguageLabels();
+  if(analysisResults)renderResults();
+}
 
 const CM={AT:{flag:'AT',label:'Austria',cur:'EUR'},AU:{flag:'AU',label:'Australia',cur:'AUD'},BE:{flag:'BE',label:'Belgium',cur:'EUR'},CA:{flag:'CA',label:'Canada',cur:'CAD'},CH:{flag:'CH',label:'Switzerland',cur:'CHF'},DE:{flag:'DE',label:'Germany',cur:'EUR'},ES:{flag:'ES',label:'Spain',cur:'EUR'},FR:{flag:'FR',label:'France',cur:'EUR'},GB:{flag:'GB',label:'United Kingdom',cur:'GBP'},GR:{flag:'GR',label:'Greece',cur:'EUR'},HK:{flag:'HK',label:'Hong Kong',cur:'HKD'},IE:{flag:'IE',label:'Ireland',cur:'EUR'},IN:{flag:'IN',label:'India',cur:'INR'},IT:{flag:'IT',label:'Italy',cur:'EUR'},JP:{flag:'JP',label:'Japan',cur:'JPY'},KR:{flag:'KR',label:'South Korea',cur:'KRW'},MY:{flag:'MY',label:'Malaysia',cur:'MYR'},NL:{flag:'NL',label:'Netherlands',cur:'EUR'},NZ:{flag:'NZ',label:'New Zealand',cur:'NZD'},PH:{flag:'PH',label:'Philippines',cur:'PHP'},PT:{flag:'PT',label:'Portugal',cur:'EUR'},SE:{flag:'SE',label:'Sweden',cur:'SEK'},SG:{flag:'SG',label:'Singapore',cur:'SGD'},TH:{flag:'TH',label:'Thailand',cur:'THB'},US:{flag:'US',label:'United States',cur:'USD'},OTHER:{flag:'OT',label:'Other',cur:'USD'}};
 let fileEntries=[],eid=0,analysisResults=null;

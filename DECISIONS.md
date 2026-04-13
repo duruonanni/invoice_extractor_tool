@@ -85,3 +85,20 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 - Consequence:
   - Reviewers land in a focused default view without losing complete coverage visibility.
   - Single-country batches or all-clear batches continue to show full content without forced filtering.
+
+## 2026-04-13 - Align Validator UI With Lenovo-Inspired Interaction Baseline
+
+- Status: Active
+- Context:
+  - The validator is a business review tool and now has a Lenovo-style UI interaction baseline in Studio resources.
+  - Existing UI behavior was functional but had gaps in keyboard accessibility, focus visibility, and token-level visual consistency.
+- Decision:
+  - Keep the current information architecture and review workflow, but align visual and interaction primitives incrementally.
+  - Adopt a first-pass update covering:
+    - Lenovo-aligned color/font token mapping in the HTML template
+    - keyboard and ARIA support for upload entry and country cards
+    - visible focus rings on primary interactive controls
+    - i18n-safe text keys for newly surfaced status labels
+- Consequence:
+  - UX remains familiar for current users while moving toward a reusable Lenovo-consistent interaction model.
+  - Future UI changes should continue this incremental alignment instead of broad visual rewrites.

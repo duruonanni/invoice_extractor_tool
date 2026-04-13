@@ -12,7 +12,20 @@ const cardsEl = document.getElementById('gCards');
 const resultsEl = document.getElementById('results');
 let countryFilterShowAllOverride = null;
 
+function refreshUiLanguageLabels() {
+  dzEl.setAttribute('aria-label', t('drop_zone_aria'));
+}
+window.refreshUiLanguageLabels = refreshUiLanguageLabels;
+dzEl.setAttribute('role', 'button');
+dzEl.setAttribute('tabindex', '0');
+refreshUiLanguageLabels();
+
 dzEl.addEventListener('click', () => fInEl.click());
+dzEl.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  fInEl.click();
+});
 dzEl.addEventListener('dragover', e => {
   e.preventDefault();
   dzEl.classList.add('dg');
@@ -235,7 +248,7 @@ function renderResults() {
     const unmappedCount = countrySummary[code].unmapped;
     const issueCountryClass = issueCount > 0 ? 'issue-country' : '';
     return `
-      <div class="gc ${issueCountryClass} ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="focusCountry('${esc(code)}')">
+      <button type="button" class="gc ${issueCountryClass} ${index === 0 ? 'a' : ''}" id="gc-${esc(code)}" onclick="focusCountry('${esc(code)}')" aria-label="${esc(`${group.meta.label} ${code}, ${issueCount} ${t('issues')}`)}">
         <div class="gc-f">${esc(group.meta.flag)}</div>
         <div class="gc-n">${esc(group.meta.label)} (${esc(code)})</div>
         <div class="gc-r"><span>${t('stmts')}</span><span class="gc-v">${group.stmts.length}</span></div>
@@ -243,7 +256,7 @@ function renderResults() {
         <div class="gc-r"><span>${t('items')}</span><span class="gc-v">${itemCount}</span></div>
         <div class="gc-r"><span>${t('unmapped')}</span><span class="gc-v ${unmappedCount ? 'er' : 'ok'}">${unmappedCount}</span></div>
         <div class="gc-r"><span>${t('issues')}</span><span class="gc-v ${issueCount ? 'er' : 'ok'}">${issueCount}</span></div>
-      </div>
+      </button>
     `;
   }).join('');
 
@@ -264,7 +277,7 @@ function renderResults() {
         ${hiddenCountryCount > 0 ? ` · ${hiddenCountryCount} ${t('country_filter_hidden')}` : ''}
       </div>
       ${canFilterCountries
-        ? `<button type="button" class="btn btn-s country-filter-btn" onclick="toggleCountryFilterMode()">${showAllCountries ? t('country_filter_show_issue_only') : t('country_filter_show_all')}</button>`
+        ? `<button type="button" class="btn btn-s country-filter-btn" onclick="toggleCountryFilterMode()" aria-pressed="${showAllCountries ? 'true' : 'false'}">${showAllCountries ? t('country_filter_show_issue_only') : t('country_filter_show_all')}</button>`
         : ''}
     </div>
   `;
@@ -326,7 +339,7 @@ function renderBatchStatus(summary) {
       <div>
         <div class="bs-title">${esc(title)}</div>
         <div class="bs-desc">${esc(desc)}</div>
-        <div class="bs-meta">${summary.statements} ${t('stmts').toLowerCase()} · ${summary.issues} ${t('errors').toLowerCase()} · ${summary.warnings} ${t('warnings').toLowerCase()} · ${summary.unmapped} ${t('unmapped').toLowerCase()} · ${summary.priceGapIssues} price gap anomalies</div>
+        <div class="bs-meta">${summary.statements} ${t('stmts').toLowerCase()} · ${summary.issues} ${t('errors').toLowerCase()} · ${summary.warnings} ${t('warnings').toLowerCase()} · ${summary.unmapped} ${t('unmapped').toLowerCase()} · ${summary.priceGapIssues} ${t('price_gap_anomalies')}</div>
       </div>
       <div class="bs-side">${esc(side)}</div>
     </section>
