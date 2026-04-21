@@ -841,9 +841,15 @@ function parseItemsMY(lines,fileName){
 
 function parseItemsPH(lines,fileName){
   const items=[];let curInv='',curTr='';let pending=[];
-  const pidRe=/^(WBD[A-Z0-9]+)\b/i;
+  const pidRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\b/i;
+  const strictPidRe=/^(?:WBD[A-Z0-9]+|[A-Z0-9]{5,}_[A-Z0-9_]+)\b/i;
   const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Total sale|Less VAT|Net of VAT|VATable Sales|VAT-Exempt Sales|Remark:|Product ID Product Name|Original Invoice No\.|BIR INVOICE|Invoice To:|SOLD TO:|Invoice Date:|Payment Term:|Due Date:|Ship To:|PO No:|Lenovo Order No\.|For questions about your invoice|page \d+ of \d+|Invoice$)/i;
-  const numsRe=/^(WBD[A-Z0-9]+)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  // Newer PH layout: pid pname [currency] qty up charges rate% tax total
+  const withTaxRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\s+(.+?)\s+(?:[A-Z]{3}\s+)?([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d.]+)\s*%\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  // Legacy PH layout: pid pname qty up charges total (no tax)
+  const noTaxWithNameRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\s+(.+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  // Legacy fallback: pid qty up charges total (name on surrounding lines)
+  const noTaxNumsOnlyRe=/^([A-Za-z0-9][A-Za-z0-9_]{4,})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
   function merge(parts){
     const out=[];
@@ -859,7 +865,7 @@ function parseItemsPH(lines,fileName){
     const parts=[];let endIdx=startIdx;
     for(let j=startIdx+1;j<Math.min(startIdx+3,lines.length);j++){
       const nxt=clean(lines[j].text);
-      if(!nxt||stopRe.test(nxt)||pidRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||/^[\d,.\s]+$/.test(nxt))break;
+      if(!nxt||stopRe.test(nxt)||strictPidRe.test(nxt)||/^\d{7,12}\b/.test(nxt)||/^[\d,.\s%]+$/.test(nxt))break;
       parts.push(nxt);endIdx=j;
     }
     return {suffix:merge(parts),endIdx};
@@ -872,14 +878,35 @@ function parseItemsPH(lines,fileName){
     const trM=ln.match(/Tranche\s*ID\s+(\S+)/i);
     if(trM){curTr=trM[1];pending=[];continue;}
     if(stopRe.test(ln)){pending=[];continue;}
-    const m=ln.match(numsRe);
+
+    let m=ln.match(withTaxRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:pN(m[7]),total:pN(m[8]),taxRate:pN(m[6]),crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+
+    m=ln.match(noTaxWithNameRe);
+    if(m){
+      const suffixInfo=collectSuffix(i);
+      const pname=merge([pending.join(' '),m[2],suffixInfo.suffix])||m[1];
+      items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[3]),up:pN(m[4]),charges:pN(m[5]),tax:0,total:pN(m[6]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
+      pending=[];i=suffixInfo.endIdx;continue;
+    }
+
+    m=ln.match(noTaxNumsOnlyRe);
     if(m){
       const suffixInfo=collectSuffix(i);
       const pname=merge([pending.join(' '),suffixInfo.suffix])||m[1];
       items.push({inv:curInv,tranche:curTr,pid:m[1],pname,qty:pN(m[2]),up:pN(m[3]),charges:pN(m[4]),tax:0,total:pN(m[5]),taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
       pending=[];i=suffixInfo.endIdx;continue;
     }
-    if(!/^\d/.test(ln))pending=[ln];
+
+    if(!/^\d/.test(ln)&&!strictPidRe.test(ln)){
+      pending.push(ln);
+      if(pending.length>2)pending=pending.slice(-2);
+    }
   }
   return items;
 }

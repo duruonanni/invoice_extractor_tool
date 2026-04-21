@@ -38,6 +38,10 @@
   - export now normalizes cell values before sheet creation
   - overlong text values are truncated to Excel-safe length (`32767`) with a suffix
   - this prevents full export failure on malformed or unusually long parsed text
+- PH detail parsing compatibility:
+  - `parseItemsPH` now supports both legacy no-tax PH lines and newer tax-inclusive PH lines
+  - PH detail rows with non-`WBD` product IDs (for example `*_AAS` patterns) are now recognized
+  - verified against `PH02_STMT_BRIM_STATEMENT_EPHP0000184.PDF` (detail rows restored)
 
 ## Current Coverage
 - Supported countries shown in UI: `25`
