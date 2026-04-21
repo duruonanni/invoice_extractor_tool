@@ -309,6 +309,23 @@ function parseItemsUS(lines,fileName){
   const reFull=/([A-Za-z].+?)\s+([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/;
   // Numbers-only pattern: when product name is on a different line
   const reNums=/^\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)\s+\$\s*([\d,]+\.?\d*)/;
+  function isNameNoise(text){
+    const t=String(text||'').trim();
+    if(!t)return true;
+    if(/^\d+(?:\.\d+)?$/.test(t))return true;
+    if(/^\/?US\s*\d+$/i.test(t))return true;
+    if(/^[A-Z]\)$/i.test(t))return true;
+    if(/^[()\/-]+$/.test(t))return true;
+    return false;
+  }
+  function shouldJoinContinuation(base,extra){
+    const a=String(base||'').trim();
+    const b=String(extra||'').trim();
+    if(!a||!b)return false;
+    if(/\([A-Za-z]?$/.test(a)&&/^[A-Za-z]\)$/.test(b))return true; // (U + S)
+    if(/\/[A-Za-z]{0,2}\s*$/.test(a)&&/^[A-Za-z0-9]/.test(b))return true;
+    return false;
+  }
   for(let i=0;i<lines.length;i++){
     const{text:ln,page}=lines[i];
     const im=ln.match(/Invoice\s*Number[:\s]*([\d]+)/i);if(im){curInv=im[1];continue}
@@ -326,14 +343,27 @@ function parseItemsUS(lines,fileName){
     // Fallback: numbers-only 鈫?look back up to 3 lines + look-forward 1 line for suffix
     m=reNums.exec(after);
     if(m){
-      let pname='';
+      let prevName='';
       for(let j=i-1;j>=Math.max(0,i-3);j--){
         const prev=lines[j].text.trim();
         if(!prev)continue;
-        if(sectRe.test(prev)||pidRe.test(prev))break;
-        if(!/^\s*[\d,.$%\s]+$/.test(prev))pname=prev+(pname?' '+pname:'');
+        if(sectRe.test(prev)||strictPidRe.test(prev)||/\$\s*[\d,]/.test(prev))break;
+        if(isNameNoise(prev))continue;
+        if(/[A-Za-z]/.test(prev)){prevName=prev;break;}
       }
-      if(i+1<lines.length){const nxt=lines[i+1].text.trim();if(nxt&&!pidRe.test(nxt)&&!sectRe.test(nxt)&&!/\$\s*[\d,]/.test(nxt))pname=(pname?pname+' ':'')+nxt;}
+      let nextName='';
+      for(let j=i+1;j<=Math.min(lines.length-1,i+3);j++){
+        const nxt=lines[j].text.trim();
+        if(!nxt)continue;
+        if(strictPidRe.test(nxt)||sectRe.test(nxt)||/\$\s*[\d,]/.test(nxt))break;
+        if(isNameNoise(nxt)){
+          if(prevName&&shouldJoinContinuation(prevName,nxt))prevName=`${prevName}${nxt}`;
+          continue;
+        }
+        if(/[A-Za-z]/.test(nxt)){nextName=nxt;break;}
+      }
+      let pname=prevName||nextName;
+      if(prevName&&nextName&&shouldJoinContinuation(prevName,nextName))pname=`${prevName}${nextName}`;
       const qty=pN(m[1]),up=pN(m[2]),ch=pN(m[3]),tax=pN(m[4]),crf=pN(m[5]),tot=pN(m[6]);
       if(tot>0)items.push({inv:curInv,tranche:curTr,pid,pname:pname||pid,qty,up,charges:ch,tax,total:tot,crfRdf:crf,srcFile:fileName,srcPage:page});
     }

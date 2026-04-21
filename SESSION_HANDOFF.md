@@ -46,6 +46,10 @@
   - `parseItemsIN` now handles split product IDs around qty rows (for example `5MS1C3370` + `2_AAS`)
   - prevents suffix-first PID contamination and reuses prior valid name for same PID when needed
   - verified against `IN01_STMT_BRIM_STATEMENT_EINP0000321.PDF` page-17 edge case
+- US detail name parsing robustness:
+  - `parseItemsUS` fallback now uses strict PID boundaries and filters short suffix/noise fragments (`28`, `S)`, `/US 2328`)
+  - picks nearest meaningful name line and only joins continuation when pattern indicates true split text
+  - verified against `US22_STMT_BRIM_STATEMENT_EPREUSP0002516.PDF` (product names restored from fragment-only values)
 
 ## Current Coverage
 - Supported countries shown in UI: `25`
