@@ -42,6 +42,10 @@
   - `parseItemsPH` now supports both legacy no-tax PH lines and newer tax-inclusive PH lines
   - PH detail rows with non-`WBD` product IDs (for example `*_AAS` patterns) are now recognized
   - verified against `PH02_STMT_BRIM_STATEMENT_EPHP0000184.PDF` (detail rows restored)
+- IN detail product parsing robustness:
+  - `parseItemsIN` now handles split product IDs around qty rows (for example `5MS1C3370` + `2_AAS`)
+  - prevents suffix-first PID contamination and reuses prior valid name for same PID when needed
+  - verified against `IN01_STMT_BRIM_STATEMENT_EINP0000321.PDF` page-17 edge case
 
 ## Current Coverage
 - Supported countries shown in UI: `25`

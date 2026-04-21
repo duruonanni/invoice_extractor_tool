@@ -974,6 +974,7 @@ function parseItemsIN(lines,fileName){
   const stopRe=/^(Sub[\s-]*Total|Grand[\s-]*Total|Billing Summary|Tax Invoice No\.|Total Statement value|Total Invoice value|Payment Term:|For Lenovo|ORIGINAL FOR RECIPIENT|Tax Invoice|PAN:|GSTIN:|Insurance:|Name: Lenovo|Place of Supply|Bill To Country|Billed on Statement:|Send Payment to:|This invoice is issued|Terms&Conditions|page \d+ of \d+|Reference Invoice Number:|Recurring Charge Period:|Sr No Part No HSN\/SAC Qty Unit Total Value|Rate Amt|IGST|CGST|SGST|Refund to be claimed)/i;
   const trancheInlineRe=/^Tranche\s*ID\s+(\S+)/i;
   const qtyRowRe=/^(\d{6})\s+([\d,]+\.?\d*)\s+([A-Z]{2})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d.]+)%\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)$/i;
+  const pidSuffixRe=/^\d+_AAS$/i;
   function clean(s){return String(s||'').replace(/\s+/g,' ').trim();}
   function merge(parts){
     const out=[];
@@ -986,18 +987,47 @@ function parseItemsIN(lines,fileName){
     return out.join(' ').trim();
   }
   function isPidFragment(ln){
-    return /^[A-Za-z0-9_]{2,}$/.test(ln)&&/[A-Za-z]/.test(ln)&&!/\s/.test(ln)&&!/^EA$/i.test(ln);
+    return /^[A-Za-z0-9_]{2,}$/.test(ln)&&/[A-Za-z]/.test(ln)&&!/\s/.test(ln)&&!/^EA$/i.test(ln)&&!pidSuffixRe.test(ln);
   }
-  function flushItemFromQty(ln,page){
+  function normalizePid(parts){
+    let pid=parts.join('').replace(/\s+/g,'');
+    // Guard against suffix-first contamination such as: 2_AAS5MS1C33702_AAS
+    const badPrefix=pid.match(/^\d+_AAS([A-Z0-9].+)$/i);
+    if(badPrefix&&/_AAS$/i.test(badPrefix[1]))pid=badPrefix[1];
+    return pid;
+  }
+  function collectTrailingPidContext(startIdx){
+    let suffix='',desc='',endIdx=startIdx;
+    for(let j=startIdx+1;j<=Math.min(lines.length-1,startIdx+2);j++){
+      const nxt=clean(lines[j].text);
+      if(!nxt)continue;
+      if(!suffix&&pidSuffixRe.test(nxt)){
+        suffix=nxt;endIdx=j;continue;
+      }
+      // In some IN pages, description appears immediately after split PID suffix.
+      if(suffix&&!desc&&!stopRe.test(nxt)&&!qtyRowRe.test(nxt)&&!isPidFragment(nxt)&&!/^\d/.test(nxt)){
+        desc=nxt;endIdx=j;continue;
+      }
+      if(stopRe.test(nxt)||qtyRowRe.test(nxt)||isPidFragment(nxt))break;
+    }
+    return{suffix,desc,endIdx};
+  }
+  function flushItemFromQty(idx,page){
+    const ln=clean(lines[idx].text);
     const m=ln.match(qtyRowRe);
-    if(!m||!pidParts.length)return false;
+    if(!m||!pidParts.length)return{matched:false,endIdx:idx};
     const qty=pN(m[2]),listedRate=pN(m[4]),charges=pN(m[5]),tax=pN(m[7])+pN(m[9])+pN(m[11])-pN(m[13]),total=pN(m[14]);
     const up=qty?charges/qty:listedRate;
-    const pid=pidParts.join('');
-    const pname=merge(pendingDesc)||pid;
+    const trailing=collectTrailingPidContext(idx);
+    const pid=normalizePid(trailing.suffix?[...pidParts,trailing.suffix]:pidParts);
+    let pname=merge([...pendingDesc,trailing.desc])||pid;
+    if(pname===pid&&items.length){
+      const prev=items[items.length-1];
+      if(prev.inv===curInv&&prev.pid===pid&&prev.pname&&prev.pname!==prev.pid)pname=prev.pname;
+    }
     if(total>0)items.push({inv:curInv,tranche:curTr,pid,pname,qty,up,listedRate,charges,tax,total,taxRate:0,crfRdf:0,srcFile:fileName,srcPage:page});
     pendingDesc=[];pidParts=[];
-    return true;
+    return{matched:true,endIdx:trailing.endIdx};
   }
   for(let i=0;i<lines.length;i++){
     const ln=clean(lines[i].text),page=lines[i].page;
@@ -1007,7 +1037,13 @@ function parseItemsIN(lines,fileName){
     const trM=ln.match(trancheInlineRe);
     if(trM){curTr=trM[1];pendingDesc=[];pidParts=[];continue;}
     if(stopRe.test(ln)){pendingDesc=[];pidParts=[];continue;}
-    if(flushItemFromQty(ln,page))continue;
+    const flushed=flushItemFromQty(i,page);
+    if(flushed.matched){i=flushed.endIdx;continue;}
+    if(pidParts.length&&pidSuffixRe.test(ln)){
+      pidParts.push(ln);
+      if(pidParts.length>5)pidParts=pidParts.slice(-5);
+      continue;
+    }
     if(isPidFragment(ln)){
       pidParts.push(ln);
       if(pidParts.length>4)pidParts=pidParts.slice(-4);
@@ -1018,6 +1054,7 @@ function parseItemsIN(lines,fileName){
       if(pidParts.length>5)pidParts=pidParts.slice(-5);
       continue;
     }
+    if(pidSuffixRe.test(ln))continue;
     if(!/^\d{6,}$/.test(ln)){
       pendingDesc.push(ln);
       if(pendingDesc.length>3)pendingDesc=pendingDesc.slice(-3);
