@@ -102,3 +102,17 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 - Consequence:
   - UX remains familiar for current users while moving toward a reusable Lenovo-consistent interaction model.
   - Future UI changes should continue this incremental alignment instead of broad visual rewrites.
+
+## 2026-04-16 - Guard Excel Export Cell Length To Prevent Hard Failure
+
+- Status: Active
+- Context:
+  - Some parsed invoice fields can contain unusually long text and exceed Excel's single-cell text limit (`32767` characters).
+  - When that happens, the browser export flow throws and the entire workbook download fails.
+- Decision:
+  - Apply a centralized export-cell normalization step before writing sheet data.
+  - Keep numeric/boolean values unchanged.
+  - Truncate over-limit text values to Excel-safe length and append a visible truncation suffix.
+- Consequence:
+  - Export remains available even when a source PDF includes malformed or overlong extracted text.
+  - Very long text fields may be clipped in Excel output, but no longer block user download.

@@ -926,6 +926,22 @@ window.showAllStatementDetails = showAllStatementDetails;
 window.jumpToValidation = jumpToValidation;
 window.jumpToPrimaryIssue = jumpToPrimaryIssue;
 
+const EXCEL_CELL_CHAR_LIMIT = 32767;
+const EXCEL_TRUNCATION_SUFFIX = ' ...[truncated]';
+
+function normalizeExportCellValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  const text = String(value);
+  if (text.length <= EXCEL_CELL_CHAR_LIMIT) return text;
+  const keep = Math.max(0, EXCEL_CELL_CHAR_LIMIT - EXCEL_TRUNCATION_SUFFIX.length);
+  return `${text.slice(0, keep)}${EXCEL_TRUNCATION_SUFFIX}`;
+}
+
+function normalizeExportRows(rows) {
+  return rows.map(row => row.map(normalizeExportCellValue));
+}
+
 function doExport() {
   if (!analysisResults) return;
   const wb = XLSX.utils.book_new();
@@ -1044,10 +1060,10 @@ function doExport() {
     }
   }
 
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billingRows), 'Billing Summary');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trancheRows), 'Tranche Summary');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Detail Line Items');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(normalizeExportRows(summaryRows)), 'Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(normalizeExportRows(billingRows)), 'Billing Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(normalizeExportRows(trancheRows)), 'Tranche Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(normalizeExportRows(detailRows)), 'Detail Line Items');
   XLSX.writeFile(wb, computeExportFilename(statements));
 }
 

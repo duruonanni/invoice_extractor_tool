@@ -2,7 +2,7 @@
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
-- Current version: `v3.12.38`
+- Current version: `v3.12.41`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
 - Release sync target:
@@ -30,6 +30,14 @@
   - added keyboard/ARIA support to upload zone and country summary cards
   - added visible focus styles across major interactive controls
   - moved `price gap anomalies` text to i18n key usage
+- Excel export robustness:
+  - export now normalizes cell values before sheet creation
+  - overlong text values are truncated to Excel-safe length (`32767`) with `...[truncated]`
+  - this prevents full export failure on malformed or unusually long parsed text
+- Excel export robustness:
+  - export now normalizes cell values before sheet creation
+  - overlong text values are truncated to Excel-safe length (`32767`) with a suffix
+  - this prevents full export failure on malformed or unusually long parsed text
 
 ## Current Coverage
 - Supported countries shown in UI: `25`
