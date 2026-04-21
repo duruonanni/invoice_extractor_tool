@@ -2,7 +2,7 @@
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
-- Current version: `v3.12.41`
+- Current version: `v3.12.42`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
 - Release sync target:
