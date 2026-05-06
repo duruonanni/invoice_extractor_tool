@@ -1,5 +1,7 @@
 node_modules/
 .DS_Store
+# macOS AppleDouble / resource-fork sidecars (binary metadata only)
+._*
 Input/
 .npm/
 .npm-cache/
