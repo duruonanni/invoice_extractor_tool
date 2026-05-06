@@ -9,8 +9,10 @@ const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, '..');
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, 'tests', 'fixtures.json'), 'utf8'));
 const workerHref = pathToFileURL(path.join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')).href;
+const workspaceAttachmentsPreview = path.join(root, '..', '..', '03_WORK', 'Attachments', 'invoice-regression', 'Approved_Preview');
 const sampleDirCandidates = [
   process.env.INVOICE_SAMPLE_DIR,
+  workspaceAttachmentsPreview,
   '/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview',
   '/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview',
   path.join(root, fixtures.base_dir),
