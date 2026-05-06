@@ -31,7 +31,7 @@ Use the project documents like this:
 
 ## Current Status
 
-- migration to `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool` is complete
+- migration into `02_PROJECTS/codex_invoice_extractor_tool` within Studio is complete
 - current shipped version in source: `v3.12.38`
 - project functionality has been verified after migration
 
@@ -71,7 +71,7 @@ node --check src/ui/ui.js
 
 ## Release Versioning
 
-The shipped tool version lives in [`src/core/core.js`](/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool/src/core/core.js) as:
+The shipped tool version lives in [`src/core/core.js`](src/core/core.js) as:
 
 `const VERSION='major.minor.patch'`
 
@@ -111,15 +111,11 @@ node scripts/bump_release_version.mjs 3.13.0
 
 Regression fixtures are defined in `tests/fixtures.json`.
 
-The repository does not currently include the approved PDF samples. By default, regression looks for them at:
+The repository does not currently include the approved PDF samples. By default, regression looks for them under Studio:
 
-`/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
+`03_WORK/Attachments/invoice-regression/Approved_Preview`
 
-It will still fall back to the legacy path if needed:
-
-`/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
-
-You can override that with `INVOICE_SAMPLE_DIR`.
+(and still checks legacy Mac-only paths and `INVOICE_SAMPLE_DIR`; see `tests/regression.mjs`).
 
 See `tests/README.md` for the sample-data convention.
 

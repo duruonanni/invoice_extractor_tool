@@ -5,10 +5,11 @@
 - Current version: `v3.12.42`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
-- Release sync target:
-  - OneDrive `.../Claude_invoice_extractor_tool/Releases/lenovo_invoice_validator_latest.html`
-- Working directory:
-  - `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool`
+- Release sync target (OneDrive — env overrides resolver; see [`scripts/release_sync.mjs`](./scripts/release_sync.mjs)):
+  - **Windows default:** `C:\OD\OneDrive - Lenovo\…\Claude_invoice_extractor_tool\Releases\lenovo_invoice_validator_latest.html`
+  - **macOS default:** `~/Library/CloudStorage/…/Claude_invoice_extractor_tool/Releases/lenovo_invoice_validator_latest.html`
+  - Canonical folder: `.../All_In_AI_Projects/Claude_invoice_extractor_tool/Releases/`
+- Working directory: this project folder (`02_PROJECTS/codex_invoice_extractor_tool`).
 
 ## Current Focus
 - Workspace migration into `Studio` is complete.
@@ -70,20 +71,17 @@
 ## Key Behaviors Already Implemented
 - Release:
   - `npm run release:sync` builds and syncs latest to OneDrive
+  - **Windows**: default OD sink is wired in `scripts/release_sync.mjs` (`C:\OD\OneDrive - Lenovo\…\Releases\`); override with `INVOICE_RELEASE_LATEST` or `INVOICE_RELEASE_ONEDRIVE_RELEASES_DIR` if needed (see [`WINDOWS_MIGRATION.md`](../../WINDOWS_MIGRATION.md))
   - old latest is archived to history with versioned naming
   - default publish path is commit-driven via `.githooks/post-commit`
   - do not manually pre-run `release:sync` unless explicitly requested
 - Regression:
-  - external PDF sample root:
-    - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression/Approved_Preview`
-  - legacy fallback still supported:
-    - `/Users/duruo/WorkStation/Attachments/invoice-regression/Approved_Preview`
-- Local workspace migration:
-  - active project path:
-    - `/Users/duruo/Studio/02_PROJECTS/codex_invoice_extractor_tool`
-  - regression / sample asset path:
-    - `/Users/duruo/Studio/03_WORK/Attachments/invoice-regression`
-  - old `WorkStation` / `PersonalStation` roots have been removed after migration validation
+  - external PDF sample root (checked in order): `$INVOICE_SAMPLE_DIR`, Studio-relative `03_WORK/Attachments/invoice-regression/Approved_Preview`, legacy Mac `WorkStation` path if present, then `tests/fixtures.json` bundled dir — see `tests/regression.mjs`.
+
+- Local workspace:
+  - project folder: `02_PROJECTS/codex_invoice_extractor_tool`
+  - sample assets: `03_WORK/Attachments/invoice-regression`
+  - **Windows:** removed stray macOS `._*` AppleDouble sidecars workspace-wide; `.gitignore` now ignores `._*` so they do not re-pollute `git status` after Mac/sync copy.
 
 ## Special Cases To Remember
 - `GR`

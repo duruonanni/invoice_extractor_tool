@@ -59,6 +59,29 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 - Consequence:
   - Regression interpretation should account for these known exceptions.
 
+## 2026-04-28 - Canonical OneDrive Publish Directory For Latest HTML
+
+- Status: Active
+- Context:
+  - `npm run release:sync` copies the built single-file release to a Lenovo OneDrive tree for sharing.
+  - The default target must stay stable so hooks and docs refer to one folder.
+  - Non-macOS machines need an explicit sink path because OneDrive layout differs per OS.
+- Decision:
+  - Publish the latest build to `All_In_AI_Projects/Claude_invoice_extractor_tool/Releases/lenovo_invoice_validator_latest.html` (history under sibling `history/`).
+  - Implement resolution in [`scripts/release_sync.mjs`](./scripts/release_sync.mjs): **macOS** defaults under `~/Library/CloudStorage/…/Claude_invoice_extractor_tool/Releases`; **Windows** defaults to workstation path `C:\OD\OneDrive - Lenovo\…\Claude_invoice_extractor_tool\Releases` unless **`INVOICE_RELEASE_LATEST`** or **`INVOICE_RELEASE_ONEDRIVE_RELEASES_DIR`** is set.
+- Consequence:
+  - If the sink moves on any machine, set env vars or extend the resolver; cross-repo notes live in [`WINDOWS_MIGRATION.md`](../../WINDOWS_MIGRATION.md).
+
+## 2026-05-04 - Regression Sample Root Is Studio-Portable
+
+- Status: Active
+- Context:
+  - `tests/regression.mjs` prioritized machine-specific absolute directories before bundled fixtures.
+- Decision:
+  - Probe `<Studio>/03_WORK/Attachments/invoice-regression/Approved_Preview` derived from project layout immediately after `INVOICE_SAMPLE_DIR`.
+- Consequence:
+  - Regression runs on Windows once the Studio tree contains samples under `03_WORK/` without editing the runner.
+
 ## 2026-04-09 - Default OneDrive Release Should Follow The Commit Path
 
 - Status: Active
@@ -116,3 +139,14 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 - Consequence:
   - Export remains available even when a source PDF includes malformed or overlong extracted text.
   - Very long text fields may be clipped in Excel output, but no longer block user download.
+
+## 2026-05-06 - Ignore And Do Not Commit macOS `._*` AppleDouble Sidecars
+
+- Status: Active
+- Context:
+  - Copying the repo from macOS or some sync tools drops AppleDouble resource-fork files named `._*` next to real files.
+  - They are binary metadata, not source; they clutter `git status` and confuse editors on Windows.
+- Decision:
+  - Delete `._*` sidecars from the working tree when they appear; keep `._*` in [`.gitignore`](./.gitignore) so Git ignores them.
+- Consequence:
+  - `git status` stays focused on real changes; open the normal filenames (for example `README.md`), not `._README.md`.
