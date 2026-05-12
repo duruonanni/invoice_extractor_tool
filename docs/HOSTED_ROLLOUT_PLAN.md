@@ -1,6 +1,6 @@
 # Hosted Rollout Plan (Netlify)
 
-Status: Planned (documentation-only phase complete; Codex review folded in 2026-05-13)  
+Status: **M1** repo scaffolding complete (Vite hosted bundle + Identity wiring + ingest stub); operator **Netlify link + Identity dashboard** steps remain human-verified  
 Last updated: 2026-05-13  
 
 This document captures agreed product intent and engineering execution notes for adding a **Netlify-hosted** web shell with **authentication and usage telemetry**, while **preserving** the existing **offline single-file** release pipeline.

@@ -8,6 +8,9 @@
   },
   "scripts": {
     "build": "node scripts/build_release.mjs",
+    "web:gen-index": "node scripts/gen_web_index.mjs",
+    "web:dev": "npm run web:gen-index && vite",
+    "web:build": "npm run web:gen-index && vite build",
     "check": "node scripts/check.mjs",
     "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
@@ -19,9 +22,11 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "playwright": "^1.58.2"
+    "playwright": "^1.58.2",
+    "vite": "^6.3.5"
   },
   "dependencies": {
+    "netlify-identity-widget": "^2.0.0",
     "pdfjs-dist": "^5.5.207"
   }
 }

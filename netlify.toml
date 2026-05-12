@@ -1,0 +1,18 @@
+[build]
+  command = "npm run web:build"
+  publish = "dist-web"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Local dev: run Vite; Netlify proxies non-function requests here.
+[dev]
+  command = "npm run web:dev"
+  targetPort = 5173
+  publish = "dist-web"
+  autoLaunch = false

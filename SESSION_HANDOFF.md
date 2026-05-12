@@ -1,10 +1,23 @@
 # Session Handoff
 
-## Hosted roadmap (planned work)
-- A Netlify-hosted **web shell + Identity + Postgres telemetry** is specified in **`docs/HOSTED_ROLLOUT_PLAN.md`**; **engineering scaffolding (M1+)** has not begun.
-- **Authoritative rollout spec**: [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (Codex-style review folded in **2026-05-13**: public-repo scope, Identity official integration links, §4A anti-abuse, telemetry idempotency/retention/rate limits, **shared-core bundling from M1**).
-- **Long-lived decision record**: [`DECISIONS.md`](DECISIONS.md) § “2026-05-12 - Hosted Netlify Variant…”.
-- **Next implementation chunk**: execute **M1** from [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (`netlify link`, baseline site, Identity open registration + skipped confirmation smoke test in `netlify dev`), keeping **offline** `npm run build` unaffected.
+## Hosted roadmap (M1 landed in repo)
+- **Authoritative rollout spec**: [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (M1 outcome: linked site + `netlify dev` Identity smoke, hosted bundle shares `src/`, ingest Function stub with payload cap).
+- **Long-lived decision record**: [`DECISIONS.md`](DECISIONS.md) § “2026-05-12…” and **2026-05-13 - Hosted Web Shell Uses Vite…**.
+- **What shipped in-tree for M1**:
+  - `vite.config.mjs`, `web/src/main.js` — Vite app imports **`src/core/core.js`**, **`src/parsers/parsers.js`**, **`src/ui/ui.js`** (shared SSOT with offline build).
+  - `scripts/gen_web_index.mjs` — generates `web/index.html` from `src/index.template.html` + Identity control strip; run via `npm run web:dev` / `npm run web:build`.
+  - `netlify.toml` — build `npm run web:build`, publish `dist-web/`, SPA redirect, `netlify dev` proxies to Vite **5173**.
+  - `netlify/functions/usage-ingest.mjs` — **stub** `POST` handler; enforces **`USAGE_INGEST_MAX_BYTES`** (default **65536**); **no JWT/DB yet (M2)**.
+  - Hosted UX: **Netlify Identity** widget in header; main upload zone stays **disabled until login** (PDF/XLSX processing remains client-only).
+
+### Requires human operator verification (not automatable here)
+1. **Link the repo to a Netlify site** (install [Netlify CLI](https://docs.netlify.com/cli/get-started/), then `netlify login` and `netlify init` / link to existing site). Commit the resulting `.netlify/state.json` **only if your team policy allows** — many teams keep link state local; either way, CI must use Netlify’s GitHub integration with the same site.
+2. **Identity**: In the Netlify site dashboard → **Identity** → enable; **Registration**: *Open*; **Emails** → disable mandatory signup confirmation (per rollout plan “注册即使用”).
+3. **Smoke**: From project root, `netlify dev` → open the printed URL → **sign up / log in** → confirm drop zone enables and **offline parity**: run verification on a non-sensitive test PDF locally.
+4. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON and **`413`** when body exceeds the cap.
+5. **Raw Vite** (`npm run web:dev` without Netlify) does **not** fully simulate Identity endpoints — prefer **`netlify dev`** for auth smoke tests.
+
+- **Next implementation chunk (M2)**: Netlify Database + real `usage-ingest` persistence, idempotency, JWT verification, rate limits — see §8 in [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`

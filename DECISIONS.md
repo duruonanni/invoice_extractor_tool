@@ -153,7 +153,7 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 
 ## 2026-05-12 - Hosted Netlify Variant Adds Identity + Telemetry Without Replacing Offline HTML
 
-- Status: Planned (engineering not started beyond documentation)
+- Status: Active (M1 engineering scaffolding in repo; DB + ingest hardening in later milestones)
 - Context:
   - The shipped single-file release remains valuable for disconnected use and OneDrive distribution.
   - Operators also want authenticated web entry, open self-registration without email friction, administrator-only aggregates, and a SQL-backed store aligned with Netlify’s managed stack.
@@ -164,5 +164,18 @@ Record long-lived project decisions here so they do not keep expanding the sessi
   - **Administrators** are Identity users provisioned via the dashboard with **`admin`/Administrator RBAC**, not separate bespoke username/password backends.
   - Telemetry (if emitted) captures **minimal metadata** aligned with [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
 - Consequence:
-  - Bug fixes touching parsing/UI core should continue to converge in `src/` and flow through **`npm run build`** for the offline artifact **and** whichever hosted bundle consumes shared modules (implementation TBD — must avoid parser forks).
+  - Bug fixes touching parsing/UI core should continue to converge in `src/` and flow through **`npm run build`** for the offline artifact **and** the hosted bundle (see **2026-05-13**), with **no parser forks**.
   - Hosted functionality must obey env-only secrets; never rely on unpublished credentials embedded in artifacts.
+
+## 2026-05-13 - Hosted Web Shell Uses Vite + Template-Generated Index
+
+- Status: Active
+- Context:
+  - The offline ship path must stay a single concatenated HTML file; the hosted site needs a modern bundle while proving **the same** `src/core`, `src/parsers`, and `src/ui` modules load correctly.
+- Decision:
+  - Use **Vite** with `root` set to `web/`, and generate `web/index.html` from [`src/index.template.html`](./src/index.template.html) via [`scripts/gen_web_index.mjs`](./scripts/gen_web_index.mjs) so layout/CSS stay aligned with the offline template.
+  - Hosted-only concerns (Netlify Identity widget, login gate copy) live under `web/src/` and **do not** alter the offline build script’s concatenation contract.
+  - Netlify publishes `dist-web/`; `netlify/functions/usage-ingest.mjs` ships as an **M1 stub** (payload cap only); JWT + persistence land in **M2** per rollout plan.
+- Consequence:
+  - Always run `npm run web:gen-index` (or `web:dev` / `web:build`, which chain it) after editing the HTML template.
+  - `netlify dev` remains the supported way to exercise Identity against a linked site; raw `vite` alone is useful only for UI wiring smoke tests without auth.
