@@ -1,5 +1,11 @@
 # Session Handoff
 
+## Hosted roadmap (planned work)
+- A Netlify-hosted **web shell + Identity + Postgres telemetry** is specified in **`docs/HOSTED_ROLLOUT_PLAN.md`**; **engineering scaffolding (M1+)** has not begun.
+- **Authoritative rollout spec**: [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (Codex-style review folded in **2026-05-13**: public-repo scope, Identity official integration links, §4A anti-abuse, telemetry idempotency/retention/rate limits, **shared-core bundling from M1**).
+- **Long-lived decision record**: [`DECISIONS.md`](DECISIONS.md) § “2026-05-12 - Hosted Netlify Variant…”.
+- **Next implementation chunk**: execute **M1** from [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (`netlify link`, baseline site, Identity open registration + skipped confirmation smoke test in `netlify dev`), keeping **offline** `npm run build` unaffected.
+
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
 - Current version: `v3.12.42`
@@ -139,13 +145,11 @@ npm run version:bump
 ```
 
 ## Open Direction
-- Continue only if new PDFs reveal:
-  - genuinely new sales-org layouts
-  - metadata gaps
-  - export/readability issues
-- Prefer not to refactor broadly unless there is a clear maintenance or correctness payoff.
+- **Hosted initiative** (parallel track): advance milestones **M1 → M5** per [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md); keep parser corrections **regression-first** (`npm run check`, `npm run regression`).
+- Offline product track: continue only if new PDFs reveal genuinely new layouts, metadata gaps, or export/readability issues — avoid broad refactors without payoff.
 
 ## Read Next Time
 - Start with `README.md` for project entry.
+- If working on hosted Netlify work, open [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) before coding.
 - Use `DECISIONS.md` for long-lived design and workflow rules.
 - Use this file for current state and next-step continuity.

@@ -150,3 +150,19 @@ Record long-lived project decisions here so they do not keep expanding the sessi
   - Delete `._*` sidecars from the working tree when they appear; keep `._*` in [`.gitignore`](./.gitignore) so Git ignores them.
 - Consequence:
   - `git status` stays focused on real changes; open the normal filenames (for example `README.md`), not `._README.md`.
+
+## 2026-05-12 - Hosted Netlify Variant Adds Identity + Telemetry Without Replacing Offline HTML
+
+- Status: Planned (engineering not started beyond documentation)
+- Context:
+  - The shipped single-file release remains valuable for disconnected use and OneDrive distribution.
+  - Operators also want authenticated web entry, open self-registration without email friction, administrator-only aggregates, and a SQL-backed store aligned with Netlify’s managed stack.
+- Decision:
+  - Introduce an additional **hosted** deployment path (**GitHub public** + **Netlify**) layered around the existing core sources.
+  - **Parsing, validation, and Excel generation stay client-side**: no PDF payloads or extracted business payloads are persisted in cloud services.
+  - **Netlify Identity** is the sole auth provider (open signup; email confirmation skipped for immediate use).
+  - **Administrators** are Identity users provisioned via the dashboard with **`admin`/Administrator RBAC**, not separate bespoke username/password backends.
+  - Telemetry (if emitted) captures **minimal metadata** aligned with [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
+- Consequence:
+  - Bug fixes touching parsing/UI core should continue to converge in `src/` and flow through **`npm run build`** for the offline artifact **and** whichever hosted bundle consumes shared modules (implementation TBD — must avoid parser forks).
+  - Hosted functionality must obey env-only secrets; never rely on unpublished credentials embedded in artifacts.
