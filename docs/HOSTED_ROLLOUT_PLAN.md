@@ -79,6 +79,8 @@ Implementations SHOULD follow **Netlify’s published patterns** rather than ad-
 
 **Server-side rule**: privileged operations (ingest validation may be user-scoped; admin-stats **must** check **role** using the recommended Function helper pattern from the docs above — do not trust client-only checks.
 
+**Hosted UI**: open the Identity modal only via **`netlifyIdentity.open()`** on explicit buttons. **Do not** put `data-netlify-identity-button` on the same visible control as a hand-written login link (the widget injects a second control and duplicates “Log in / Sign up”). **Unauthenticated** users should see a **login landing panel** (`#hostedLoginScreen`); the validator workspace (`#hostedAppShell`) stays **hidden** until `init`/`login` provides a user — see `scripts/gen_web_index.mjs` and `web/src/main.js`.
+
 Operational checklist (Netlify dashboard):
 
 1. Enable Identity.

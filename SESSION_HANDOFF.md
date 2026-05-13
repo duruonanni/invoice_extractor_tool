@@ -8,7 +8,7 @@
   - `scripts/gen_web_index.mjs` — generates `web/index.html` from `src/index.template.html` + Identity control strip; run via `npm run web:dev` / `npm run web:build`.
   - `netlify.toml` — build `npm run web:build`, publish `dist-web/`, SPA redirect, `netlify dev` proxies to Vite **5173**.
   - `netlify/functions/usage-ingest.mjs` — **stub** `POST` handler; enforces **`USAGE_INGEST_MAX_BYTES`** (default **65536**); **no JWT/DB yet (M2)**.
-  - Hosted UX: **Netlify Identity** widget in header; main upload zone stays **disabled until login** (PDF/XLSX processing remains client-only). For **pure Vite** local runs, optional [`web/.env.example`](./web/.env.example) → `web/.env.local` with `VITE_DEV_SKIP_IDENTITY=1` bypasses the gate (**development only**, see **Local debugging** below).
+  - Hosted UX: **Netlify Identity** — **single** sign-in entry (`netlifyIdentity.open()`); dedicated **login panel** until session exists; then full validator workspace (`#hostedAppShell`). No `data-netlify-identity-button` on duplicate controls. For **pure Vite** local runs, optional [`web/.env.example`](./web/.env.example) → `web/.env.local` with `VITE_DEV_SKIP_IDENTITY=1` bypasses the gate (**development only**, see **Local debugging** below).
 
 ### Local debugging (hosted shell — before relying on Identity)
 - **Symptom** `Failed to load settings from /.netlify/identity` on **`*.netlify.app`**: Identity is **not enabled** on that Netlify site. Fix: Dashboard → **Site configuration** → **Identity** → enable the service — then reopen the site / clear cache — see also step 4 below for registration/email settings.

@@ -1,3 +1,5 @@
+/** i18n `t` lives in core; ESM needs a local binding (offline concat uses one global `t`). */
+var t=k=>(typeof window!=='undefined'&&window.__LIV_T?window.__LIV_T(k):k);
 function parseBillingSummaryGeneric(text){
   const hasSummaryLabel = /(Billing\s*Summary|Summary\s*of\s*Charges|Statement\s*Summary|Summary\s*Charges|Summary\s*By|請求概要|Resumen\s+de\s+facturación)/i.test(text);
   const res=[];let m;

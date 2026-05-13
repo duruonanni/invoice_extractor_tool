@@ -83,6 +83,7 @@ const I={
 };
 let curLang='en';
 function t(k){return I[curLang][k]||I.en[k]||k}
+if(typeof window!=='undefined')window.__LIV_T=t;
 function setLang(l){
   curLang=l;
   document.querySelectorAll('[data-t]').forEach(el=>{

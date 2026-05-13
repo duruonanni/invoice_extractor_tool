@@ -95,6 +95,16 @@ Recommended code organization:
 - `ui`: rendering, interactions, filtering, export triggers
 - `build`: combine sources into final single-file release HTML
 
+### Hosted web (Netlify) — access and layout
+
+When the tool is run as the **Vite-hosted** app (`web/`, `npm run web:dev` / production deploy), these requirements apply in addition to offline behavior:
+
+- **Authentication**: use **Netlify Identity** only; open the Identity modal via `netlifyIdentity.open()` from explicit buttons — do **not** use `data-netlify-identity-button` on the same visible control (it duplicates the login UI with the widget).
+- **Unauthenticated landing**: show a **single** sign-in entry point (dedicated panel and/or one header control). The **validator workspace** (drop zone, file list, results) stays **hidden** until the user has a valid Identity session.
+- **After login**: show the full validator workspace; header shows account email and **Log out**. Parsing and export remain **browser-local**; see `docs/HOSTED_ROLLOUT_PLAN.md` for telemetry and privacy.
+
+The **offline** single-file artifact (`npm run build` → `release/lenovo_invoice_validator.html`) has **no** Identity gate unless separately specified.
+
 ### Parser Routing
 Use a dispatch model:
 - generic parser for stable common formats

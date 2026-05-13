@@ -1,3 +1,5 @@
+/** i18n `t` lives in core; ESM needs a local binding (offline concat uses one global `t`). */
+var t=k=>(typeof window!=='undefined'&&window.__LIV_T?window.__LIV_T(k):k);
 const dzEl = document.getElementById('dz');
 const fInEl = document.getElementById('fIn');
 const fileListEl = document.getElementById('fList');
