@@ -16,3 +16,6 @@ web/index.html
 Thumbs.db
 desktop.ini
 .vscode/
+
+# Local Netlify folder
+.netlify

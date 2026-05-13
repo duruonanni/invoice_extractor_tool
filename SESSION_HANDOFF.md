@@ -11,11 +11,16 @@
   - Hosted UX: **Netlify Identity** widget in header; main upload zone stays **disabled until login** (PDF/XLSX processing remains client-only).
 
 ### Requires human operator verification (not automatable here)
-1. **Link the repo to a Netlify site** (install [Netlify CLI](https://docs.netlify.com/cli/get-started/), then `netlify login` and `netlify init` / link to existing site). Commit the resulting `.netlify/state.json` **only if your team policy allows** — many teams keep link state local; either way, CI must use Netlify’s GitHub integration with the same site.
-2. **Identity**: In the Netlify site dashboard → **Identity** → enable; **Registration**: *Open*; **Emails** → disable mandatory signup confirmation (per rollout plan “注册即使用”).
-3. **Smoke**: From project root, `netlify dev` → open the printed URL → **sign up / log in** → confirm drop zone enables and **offline parity**: run verification on a non-sensitive test PDF locally.
-4. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON and **`413`** when body exceeds the cap.
-5. **Raw Vite** (`npm run web:dev` without Netlify) does **not** fully simulate Identity endpoints — prefer **`netlify dev`** for auth smoke tests.
+1. **GitHub remote (Netlify expects a published repo for “Connect to Git”)**: On GitHub, create an **empty** repo (no README/license unless you prefer `git pull` first). Then in this folder run:
+   `git remote add origin https://github.com/<you>/<repo>.git`
+   `git push -u origin master`
+   After `origin` exists, rerun `netlify init` and choose **No, I will connect this directory with GitHub first**, or attach the repo in the Netlify site → **Site configuration → Build & deploy → Continuous Deployment**.
+   Local-only `.netlify/` is listed in `.gitignore` (Netlify CLI may add it there automatically).
+2. **Link the repo to a Netlify site** (install [Netlify CLI](https://docs.netlify.com/cli/get-started/), then `netlify login` and `netlify init` / link to existing site). Commit the resulting `.netlify/state.json` **only if your team policy allows** — many teams keep link state local; either way, CI must use Netlify’s GitHub integration with the same site.
+3. **Identity**: In the Netlify site dashboard → **Identity** → enable; **Registration**: *Open*; **Emails** → disable mandatory signup confirmation (per rollout plan “注册即使用”).
+4. **Smoke**: From project root, `netlify dev` → open the printed URL → **sign up / log in** → confirm drop zone enables and **offline parity**: run verification on a non-sensitive test PDF locally.
+5. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON and **`413`** when body exceeds the cap.
+6. **Raw Vite** (`npm run web:dev` without Netlify) does **not** fully simulate Identity endpoints — prefer **`netlify dev`** for auth smoke tests.
 
 - **Next implementation chunk (M2)**: Netlify Database + real `usage-ingest` persistence, idempotency, JWT verification, rate limits — see §8 in [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
 
