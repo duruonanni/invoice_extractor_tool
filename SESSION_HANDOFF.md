@@ -13,6 +13,7 @@
 ### Local debugging (hosted shell — before relying on Identity)
 - **Symptom** `Failed to load settings from /.netlify/identity` on **`*.netlify.app`**: Identity is **not enabled** on that Netlify site. Fix: Dashboard → **Site configuration** → **Identity** → enable the service — then reopen the site / clear cache — see also step 4 below for registration/email settings.
 - **`npm run web:dev` without Identity**: Copy [`web/.env.example`](./web/.env.example) to **`web/.env.local`** (already gitignored) with **`VITE_DEV_SKIP_IDENTITY=1`**, restart Vite → upload zone works without login. **`vite build`/Netlify** always sets `import.meta.env.DEV === false`, so this bypass cannot ship in production bundles from a normal CI build unless you misuse custom modes env.
+- **`npm run web:dev` WITH login** — if the widget opens **“Development Settings”** asking for your Netlify site URL: enter your **site root** (e.g. `https://invoice-extractor-tool.netlify.app`) and *Set site’s URL*, **or** add **`VITE_NETLIFY_IDENTITY_URL=https://<site>.netlify.app/.netlify/identity`** to `web/.env.local` (and comment out **`VITE_DEV_SKIP_IDENTITY`**), restart Vite — `main.js` calls `init({ APIUrl })` in dev only per [netlify-identity-widget § Localhost](https://github.com/netlify/netlify-identity-widget#localhost).
 - **`netlify dev` (full parity)**: Use after Identity is enabled and the CLI is **`netlify link`**’d to this site — same widget as production, routed through `/.netlify/identity`.
 
 ### Requires human operator verification (not automatable here)

@@ -44,7 +44,13 @@ if (skipIdentity) {
 } else {
   hostedGateOverlay.textContent =
     'Sign in to use the hosted validator. PDF parsing and Excel export run in your browser; invoice content is not uploaded to Netlify.';
-  netlifyIdentity.init();
+  const initOpts = {};
+  /** Localhost: avoids "Development Settings" modal ([netlify-identity-widget README § Localhost]) */
+  const identityApi =
+    typeof import.meta.env.VITE_NETLIFY_IDENTITY_URL === 'string' &&
+    import.meta.env.VITE_NETLIFY_IDENTITY_URL.trim();
+  if (import.meta.env.DEV === true && identityApi) initOpts.APIUrl = identityApi;
+  netlifyIdentity.init(initOpts);
   netlifyIdentity.on('init', user => setHostedAccess(user));
   netlifyIdentity.on('login', user => setHostedAccess(user));
   netlifyIdentity.on('logout', () => setHostedAccess(null));
