@@ -8,7 +8,12 @@
   - `scripts/gen_web_index.mjs` — generates `web/index.html` from `src/index.template.html` + Identity control strip; run via `npm run web:dev` / `npm run web:build`.
   - `netlify.toml` — build `npm run web:build`, publish `dist-web/`, SPA redirect, `netlify dev` proxies to Vite **5173**.
   - `netlify/functions/usage-ingest.mjs` — **stub** `POST` handler; enforces **`USAGE_INGEST_MAX_BYTES`** (default **65536**); **no JWT/DB yet (M2)**.
-  - Hosted UX: **Netlify Identity** widget in header; main upload zone stays **disabled until login** (PDF/XLSX processing remains client-only).
+  - Hosted UX: **Netlify Identity** widget in header; main upload zone stays **disabled until login** (PDF/XLSX processing remains client-only). For **pure Vite** local runs, optional [`web/.env.example`](./web/.env.example) → `web/.env.local` with `VITE_DEV_SKIP_IDENTITY=1` bypasses the gate (**development only**, see **Local debugging** below).
+
+### Local debugging (hosted shell — before relying on Identity)
+- **Symptom** `Failed to load settings from /.netlify/identity` on **`*.netlify.app`**: Identity is **not enabled** on that Netlify site. Fix: Dashboard → **Site configuration** → **Identity** → enable the service — then reopen the site / clear cache — see also step 4 below for registration/email settings.
+- **`npm run web:dev` without Identity**: Copy [`web/.env.example`](./web/.env.example) to **`web/.env.local`** (already gitignored) with **`VITE_DEV_SKIP_IDENTITY=1`**, restart Vite → upload zone works without login. **`vite build`/Netlify** always sets `import.meta.env.DEV === false`, so this bypass cannot ship in production bundles from a normal CI build unless you misuse custom modes env.
+- **`netlify dev` (full parity)**: Use after Identity is enabled and the CLI is **`netlify link`**’d to this site — same widget as production, routed through `/.netlify/identity`.
 
 ### Requires human operator verification (not automatable here)
 1. **GitHub remote (Netlify expects a published repo for “Connect to Git”)**: On GitHub, create an **empty** repo (no README/license unless you prefer `git pull` first). Then in this folder run:
@@ -20,7 +25,7 @@
 3. **Identity**: In the Netlify site dashboard → **Identity** → enable; **Registration**: *Open*; **Emails** → disable mandatory signup confirmation (per rollout plan “注册即使用”).
 4. **Smoke**: From project root, `netlify dev` → open the printed URL → **sign up / log in** → confirm drop zone enables and **offline parity**: run verification on a non-sensitive test PDF locally.
 5. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON and **`413`** when body exceeds the cap.
-6. **Raw Vite** (`npm run web:dev` without Netlify) does **not** fully simulate Identity endpoints — prefer **`netlify dev`** for auth smoke tests.
+6. **Raw Vite** (`npm run web:dev` alone) does **not** load `/.netlify/identity`; use **`VITE_DEV_SKIP_IDENTITY`** in `web/.env.local` to debug core parsing/UI, or use **`netlify dev`** once Identity is **enabled** on the linked site — see **Local debugging** above.
 
 - **Next implementation chunk (M2)**: Netlify Database + real `usage-ingest` persistence, idempotency, JWT verification, rate limits — see §8 in [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
 

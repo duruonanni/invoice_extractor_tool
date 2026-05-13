@@ -179,3 +179,4 @@ Record long-lived project decisions here so they do not keep expanding the sessi
 - Consequence:
   - Always run `npm run web:gen-index` (or `web:dev` / `web:build`, which chain it) after editing the HTML template.
   - `netlify dev` remains the supported way to exercise Identity against a linked site; raw `vite` alone is useful only for UI wiring smoke tests without auth.
+  - **`VITE_DEV_SKIP_IDENTITY=1`** in untracked `web/.env.local` may be used **only with `npm run web:dev`** to bypass Identity while iterating on shared `src/` behavior; production bundles from `vite build` must not rely on `import.meta.env.DEV` skips (already false).

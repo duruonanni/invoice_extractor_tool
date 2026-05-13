@@ -19,3 +19,6 @@ desktop.ini
 
 # Local Netlify folder
 .netlify
+
+# Local Vite env (see web/.env.example)
+web/.env.local
