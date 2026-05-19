@@ -187,6 +187,15 @@ summary{cursor:pointer;font-weight:700;margin-bottom:8px}
 .hosted-login-screen{max-width:480px;margin:48px auto;padding:32px 28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 24px rgba(17,24,79,.06)}
 .hosted-login-screen h2{margin:0 0 10px;font-size:20px;color:var(--ink)}
 .hosted-login-screen p{margin:0 0 22px;color:var(--text-dim);font-size:13px;line-height:1.55}
+.hosted-auth-form{display:flex;flex-direction:column;gap:12px;margin-top:18px;text-align:left}
+.hosted-auth-field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--text-dim)}
+.hosted-auth-field input{width:100%;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);padding:10px 11px}
+.hosted-auth-field input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.hosted-auth-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.hosted-auth-status{margin:4px 0 0;text-align:center;font-size:12px;line-height:1.45}
+.hosted-auth-status.info{color:var(--text-dim)}
+.hosted-auth-status.success{color:var(--green)}
+.hosted-auth-status.error{color:var(--red)}
 .auth-segment{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 /* [hidden] must win over .auth-segment (otherwise Sign out + Sign in both show) */
 .hdr-auth .auth-segment[hidden]{display:none !important}

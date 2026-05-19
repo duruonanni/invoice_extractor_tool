@@ -37,7 +37,21 @@ if (withHdr === template) {
 const hostedLoginPanel = `  <div id="hostedLoginScreen" class="hosted-login-screen">
     <h2 data-t="hosted_login_title">Sign in</h2>
     <p data-t="hosted_login_blurb">PDF parsing and Excel export run in your browser. Invoice content is not uploaded to the server. Sign in to use the hosted validator.</p>
-    <button type="button" id="hostedLoginBtn" class="btn btn-p" data-t="hosted_login_btn">Sign in</button>
+    <form id="hostedAuthForm" class="hosted-auth-form">
+      <label class="hosted-auth-field">
+        <span>Email</span>
+        <input type="email" id="hostedAuthEmail" autocomplete="email" required>
+      </label>
+      <label class="hosted-auth-field">
+        <span>Password</span>
+        <input type="password" id="hostedAuthPassword" autocomplete="current-password" required>
+      </label>
+      <div class="hosted-auth-actions">
+        <button type="submit" id="hostedAuthSubmit" class="btn btn-p" data-t="hosted_login_btn">Sign in</button>
+        <button type="button" id="hostedAuthSignup" class="btn">Create account</button>
+      </div>
+      <p id="hostedAuthStatus" class="hosted-auth-status" hidden></p>
+    </form>
   </div>
   <div id="hostedAppShell" hidden>
 `;

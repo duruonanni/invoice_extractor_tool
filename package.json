@@ -11,6 +11,7 @@
     "web:gen-index": "node scripts/gen_web_index.mjs",
     "web:dev": "npm run web:gen-index && vite",
     "web:build": "npm run web:gen-index && vite build",
+    "web:preview": "npm run web:build && vite preview --host 127.0.0.1",
     "check": "node scripts/check.mjs",
     "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
@@ -26,7 +27,8 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "netlify-identity-widget": "^2.0.0",
+    "@netlify/database": "^1.0.0",
+    "@netlify/identity": "^1.2.0",
     "pdfjs-dist": "^5.5.207"
   }
 }

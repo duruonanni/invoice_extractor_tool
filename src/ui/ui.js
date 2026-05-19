@@ -213,12 +213,55 @@ async function runAll() {
 
   setProg(94, t('rendering'));
   renderResults();
+  emitVerificationComplete(ready);
   setProg(100, t('done'));
   runBtnEl.disabled = false;
   exportBtnEl.style.display = 'inline-flex';
   setTimeout(() => {
     progressWrapEl.style.display = 'none';
   }, 1200);
+}
+
+function emitVerificationComplete(readyEntries) {
+  if (typeof window === 'undefined' || !analysisResults) return;
+  const statements = Object.values(analysisResults).flatMap(group => group.stmts);
+  const failedChecks = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'f').length, 0);
+  const warningChecks = statements.reduce((sum, stmt) => sum + stmt.vr.filter(check => check.sv === 'w').length, 0);
+  const invoiceCount = statements.reduce((sum, stmt) => sum + stmt.bs.length, 0);
+  const lineItemCount = statements.reduce((sum, stmt) => sum + stmt.li.length, 0);
+  const totalPages = readyEntries.reduce((sum, entry) => {
+    const pages = (entry.lines || []).reduce((max, line) => Math.max(max, Number(line.page) || 0), 0);
+    return sum + pages;
+  }, 0);
+  const detail = {
+    schemaVersion: 1,
+    clientEventId: crypto.randomUUID(),
+    sessionId: getUsageSessionId(),
+    occurredAt: new Date().toISOString(),
+    pdfCount: readyEntries.length,
+    totalPages,
+    countryCount: Object.keys(analysisResults).length,
+    statementCount: statements.length,
+    invoiceCount,
+    lineItemCount,
+    failedChecks,
+    warningChecks,
+    outcome: failedChecks > 0 ? 'issues' : (warningChecks > 0 ? 'warnings' : 'success'),
+  };
+  window.dispatchEvent(new CustomEvent('liv:verification-complete', { detail }));
+}
+
+function getUsageSessionId() {
+  const key = 'liv_usage_session_id';
+  try {
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    sessionStorage.setItem(key, created);
+    return created;
+  } catch (_) {
+    return crypto.randomUUID();
+  }
 }
 
 function renderResults() {

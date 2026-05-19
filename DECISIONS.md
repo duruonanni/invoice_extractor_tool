@@ -182,3 +182,37 @@ Record long-lived project decisions here so they do not keep expanding the sessi
   - Unauthenticated visitors see **`#hostedLoginScreen` only**; **`#hostedAppShell`** (drop zone + results) remains hidden until Identity reports a user.
 - `netlify dev` remains the supported way to exercise Identity against a linked site; raw `vite` alone is useful only for UI wiring smoke tests without auth.
   - **`VITE_DEV_SKIP_IDENTITY=1`** in untracked `web/.env.local` may be used **only with `npm run web:dev`** to bypass Identity while iterating on shared `src/` behavior; production bundles from `vite build` must not rely on `import.meta.env.DEV` skips (already false).
+  - Keep SPA fallback in `web/public/_redirects` for deploy output and avoid catch-all redirects in `netlify.toml` during `netlify dev`; otherwise module requests can be rewritten to `/index.html` and trigger MIME/script-load failures that make auth controls appear non-responsive.
+
+## 2026-05-13 - Hosted Identity Sign-In Must Fail Open With User-Visible Diagnostics
+
+- Status: Active
+- Context:
+  - Production users reported `Sign in` clicks that appeared to do nothing (no modal, no obvious blocking message), especially in Edge with tracking-prevention warnings.
+  - A strict `wait-for-init-then-open` path can create a silent dead-end when Identity init does not complete promptly.
+- Decision:
+  - Treat `Sign in` clicks as fail-open:
+    - try `netlifyIdentity.open('login')` immediately on click
+    - if init is still pending, keep a one-shot retry on the `init` event
+    - add a short timeout that renders an in-page troubleshooting notice instead of silent no-op
+  - Preserve dashboard and browser checks as operator responsibilities (Identity enabled, registration policy, tracking/ad-block allowances).
+- Consequence:
+  - Hosted login failures become diagnosable from the UI and logs instead of appearing unresponsive.
+  - Future auth UX changes must preserve explicit user feedback for timeout/error states in `web/src/main.js`.
+
+## 2026-05-19 - Hosted Auth Uses Identity, App Records Use Database
+
+- Status: Active
+- Context:
+  - Netlify Identity is enabled for the hosted project and exposes an endpoint, but raw Vite local dev cannot reliably validate remote Identity because browser CORS/credential behavior can block `/.netlify/identity/settings` from `127.0.0.1`.
+  - The old `netlify-identity-widget` modal path created hard-to-debug silent-click behavior and is not the preferred long-term UX.
+  - The product needs access control and usage reporting, not a full custom credential system.
+- Decision:
+  - Keep Netlify Identity as the authentication provider.
+  - Use Netlify Database for application records only: `user_profiles`, `usage_events`, later rollups/audit logs.
+  - Do not create a custom password/session system in Netlify Database.
+  - Replace the old widget-modal dependency with an explicit auth flow that can be verified locally via `netlify dev`.
+- Consequence:
+  - Local auth verification must use `netlify dev` or a deploy preview, not bare `npm run web:dev` against `127.0.0.1:5173`.
+  - Bare Vite remains useful for UI/parser work with `VITE_DEV_SKIP_IDENTITY=1`.
+  - Function and Database work must preserve the privacy boundary: no PDF bytes, filenames, invoice numbers, customer names, line items, monetary amounts, or free-text invoice snippets in telemetry.

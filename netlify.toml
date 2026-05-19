@@ -5,14 +5,10 @@
 [functions]
   directory = "netlify/functions"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Local dev: run Vite; Netlify proxies non-function requests here.
+# Local auth parity: serve the production Vite build while Netlify proxies
+# Functions and Identity on the same local origin.
 [dev]
-  command = "npm run web:dev"
-  targetPort = 5173
+  command = "npm run web:preview"
+  targetPort = 4173
   publish = "dist-web"
   autoLaunch = false

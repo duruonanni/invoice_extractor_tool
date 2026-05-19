@@ -1,7 +1,9 @@
 # Hosted Rollout Plan (Netlify)
 
-Status: **M1** repo scaffolding complete (Vite hosted bundle + Identity wiring + ingest stub); operator **Netlify link + Identity dashboard** steps remain human-verified  
-Last updated: 2026-05-13  
+Status: **M1 repo scaffolding complete; auth/database direction updated for M2**  
+Last updated: 2026-05-19  
+
+> **Current implementation handoff:** use [`HOSTED_AUTH_DATABASE_HANDOFF.md`](./HOSTED_AUTH_DATABASE_HANDOFF.md) for the active auth/database plan. In short: Netlify Identity remains the authentication provider, Netlify Database stores only app/usage records, and the old `netlify-identity-widget` iframe/modal path is superseded as the primary login UX.
 
 This document captures agreed product intent and engineering execution notes for adding a **Netlify-hosted** web shell with **authentication and usage telemetry**, while **preserving** the existing **offline single-file** release pipeline.
 
