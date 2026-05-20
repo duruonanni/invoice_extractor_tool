@@ -32,7 +32,7 @@ Use the project documents like this:
 ## Current Status
 
 - migration into `02_PROJECTS/codex_invoice_extractor_tool` within Studio is complete
-- current shipped version in source: `v3.12.43`
+- current shipped version in source: `v3.12.44`
 - project functionality has been verified after migration
 
 ## Daily Commands

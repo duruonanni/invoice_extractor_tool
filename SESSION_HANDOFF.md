@@ -76,7 +76,7 @@
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
-- Current version: `v3.12.43`
+- Current version: `v3.12.44`
 - Main deliverable:
   - `release/lenovo_invoice_validator.html`
 - Release sync target (OneDrive — env overrides resolver; see [`scripts/release_sync.mjs`](./scripts/release_sync.mjs)):
