@@ -12,6 +12,8 @@ const files = [
   path.join(root, 'src', 'parsers', 'parsers.js'),
   path.join(root, 'src', 'ui', 'ui.js'),
   path.join(root, 'tests', 'regression.mjs'),
+  path.join(root, 'tests', 'usage_ingest.mjs'),
+  path.join(root, 'netlify', 'functions', 'usage-ingest.mjs'),
 ];
 
 let failed = false;

@@ -71,7 +71,7 @@ function setAuthBusy(isBusy, action = currentAuthAction) {
 }
 
 function readCredentials() {
-  const email = authEmail ? authEmail.value.trim() : '';
+  const email = authEmail ? authEmail.value.trim().toLowerCase() : '';
   const password = authPassword ? authPassword.value : '';
   if (!email || !password) {
     throw new Error('Enter an email and password.');
@@ -166,9 +166,13 @@ function setHostedAccess(user) {
 async function sendUsageEvent(detail) {
   if (!currentUser || !detail) return;
   try {
+    const jwt = getIdentityJwt();
     const response = await fetch('/.netlify/functions/usage-ingest', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+      },
       credentials: 'include',
       body: JSON.stringify(detail),
     });
@@ -178,6 +182,20 @@ async function sendUsageEvent(detail) {
     }
   } catch (err) {
     console.error('[usage-ingest] failed', err);
+  }
+}
+
+function getIdentityJwt() {
+  if (typeof document === 'undefined') return '';
+  const cookie = document.cookie
+    .split('; ')
+    .find(entry => entry.startsWith('nf_jwt='));
+  if (!cookie) return '';
+  const [, value = ''] = cookie.split('=');
+  try {
+    return decodeURIComponent(value);
+  } catch (_) {
+    return value;
   }
 }
 

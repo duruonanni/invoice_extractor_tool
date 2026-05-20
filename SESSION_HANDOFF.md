@@ -1,6 +1,6 @@
 # Session Handoff
 
-## Current hosted auth/database direction (2026-05-19)
+## Current hosted auth/database direction (2026-05-20)
 - **Active handoff**: [`docs/HOSTED_AUTH_DATABASE_HANDOFF.md`](docs/HOSTED_AUTH_DATABASE_HANDOFF.md).
 - **Decision**: keep Netlify Identity as the authentication provider, but stop treating the old `netlify-identity-widget` iframe/modal as the primary UX path. Use Netlify Database only for application records (`user_profiles`, `usage_events`, later rollups/audit logs), not for custom password/session management.
 - **Reason**: Identity is enabled for the Netlify project and the endpoint exists, but raw Vite local dev (`127.0.0.1:5173`) cannot reliably test remote Identity because cross-origin settings requests can fail in-browser. The old widget path also produced silent-click UX on production when the latest local diagnostics were not deployed.
@@ -10,21 +10,28 @@
   - then use a Netlify Deploy Preview before production
 - **Local Netlify link**: this workspace is linked to Netlify site id `1b710186-07cb-4f14-a4ad-a3228b0fe93b` (`invoice-extractor-tool`), so `netlify dev` can proxy real `/.netlify/identity/settings` locally.
 - **Current local smoke**: `netlify dev` at `http://localhost:8888/` loads the built hosted app, `/.netlify/identity/settings` returns JSON, and an invalid login attempt shows a visible form error instead of a silent click.
-- **Latest hosted fix (2026-05-19)**:
+- **Latest hosted fix (2026-05-20)**:
   - removed the stale signup success copy that said "If confirmation is required..." after Identity was configured with email confirmation not required
   - fixed hosted PDF upload/runtime parsing by executing `src/core/core.js`, `src/parsers/parsers.js`, and `src/ui/ui.js` in one shared scope from `web/src/main.js`; this preserves the offline single-file global-state contract (`eid`, `fileEntries`, `analysisResults`, parser helpers) under Vite
-  - verified with raw Vite + `VITE_DEV_SKIP_IDENTITY=1`: uploading `CA01_STMT_BRIM_STATEMENT_EPRECAP0000073.PDF`, running verification, and showing export all work without console errors
+  - normalized hosted auth email input to lowercase before signup/login to avoid mixed-case login failures
+  - hosted telemetry requests now send the Netlify Identity JWT via `Authorization: Bearer <token>` while still using same-origin cookies
+  - `netlify/functions/usage-ingest.mjs` now writes `user_profiles` + `usage_events`, preserves `(user_sub, client_event_id)` idempotency, and applies baseline per-user/per-IP rate limits backed by `ingest_rate_limits`
+  - added repo-level hosted telemetry coverage via `tests/usage_ingest.mjs`
+  - verified locally with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`
 - **Historical note**: [`docs/IDENTITY_LOGIN_HANDOFF.md`](docs/IDENTITY_LOGIN_HANDOFF.md) is now superseded as implementation direction and kept only as old-widget debugging context.
 
-## Hosted roadmap (M1 landed in repo)
-- **Authoritative rollout spec**: [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (M1 outcome: linked site + `netlify dev` Identity smoke, hosted bundle shares `src/`, ingest Function stub with payload cap).
+## Hosted roadmap (M2 in progress)
+- **Authoritative rollout spec**: [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md) (M1 shipped; M2 now covers database-backed ingest, idempotency, and baseline rate limiting).
 - **Long-lived decision record**: [`DECISIONS.md`](DECISIONS.md) § “2026-05-12…” and **2026-05-13 - Hosted Web Shell Uses Vite…**.
 - **What shipped in-tree for M1**:
   - `vite.config.mjs`, `web/src/main.js` — Vite app imports **`src/core/core.js`**, **`src/parsers/parsers.js`**, **`src/ui/ui.js`** (shared SSOT with offline build).
   - `scripts/gen_web_index.mjs` — generates `web/index.html` from `src/index.template.html` + Identity control strip; run via `npm run web:dev` / `npm run web:build`.
   - `netlify.toml` — build `npm run web:build`, publish `dist-web/`, `netlify dev` proxies to Vite **5173**.
   - `web/public/_redirects` — SPA fallback rule (`/* /index.html 200`) applied at deploy/build output level.
-  - `netlify/functions/usage-ingest.mjs` — **stub** `POST` handler; enforces **`USAGE_INGEST_MAX_BYTES`** (default **65536**); **no JWT/DB yet (M2)**.
+  - `netlify/functions/usage-ingest.mjs` — `POST` handler with payload cap, authenticated user resolution, database persistence, idempotent inserts, and baseline rate limiting.
+  - `netlify/database/migrations/0001_create-usage-tables/` — `user_profiles` + `usage_events`.
+  - `netlify/database/migrations/0002_add-ingest-rate-limits/` — hashed per-scope request buckets for baseline anti-abuse controls.
+  - `tests/usage_ingest.mjs` — local handler coverage for payload validation, idempotency, and rate limiting.
   - Hosted UX: **Netlify Identity** — **single** sign-in entry (`netlifyIdentity.open()`); dedicated **login panel** until session exists; then full validator workspace (`#hostedAppShell`). No `data-netlify-identity-button` on duplicate controls. For **pure Vite** local runs, optional [`web/.env.example`](./web/.env.example) → `web/.env.local` with `VITE_DEV_SKIP_IDENTITY=1` bypasses the gate (**development only**, see **Local debugging** below).
 - **Login silent-click mitigation landed (2026-05-13)**: `web/src/main.js` now treats `Sign in` as **fail-open + visible diagnostics** instead of waiting forever for `init`:
   - click attempts `netlifyIdentity.open('login')` immediately
@@ -53,10 +60,10 @@
 2. **Link the repo to a Netlify site** (install [Netlify CLI](https://docs.netlify.com/cli/get-started/), then `netlify login` and `netlify init` / link to existing site). Commit the resulting `.netlify/state.json` **only if your team policy allows** — many teams keep link state local; either way, CI must use Netlify’s GitHub integration with the same site.
 3. **Identity**: In the Netlify site dashboard → **Identity** → enable; **Registration**: *Open*; **Emails** → disable mandatory signup confirmation (per rollout plan “注册即使用”).
 4. **Smoke**: From project root, `netlify dev` → open the printed URL → **sign up / log in** → confirm drop zone enables and **offline parity**: run verification on a non-sensitive test PDF locally.
-5. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON and **`413`** when body exceeds the cap.
+5. **Optional**: Set site env **`USAGE_INGEST_MAX_BYTES`**, **`INGEST_MAX_REQ_PER_MIN_USER`**, **`INGEST_MAX_REQ_PER_MIN_IP`**, and **`INGEST_RATE_LIMIT_WINDOW_SECONDS`** in Netlify UI for production; test `POST /.netlify/functions/usage-ingest` returns `200` with small JSON, **`413`** when body exceeds the cap, and **`429`** when the request window is exceeded.
 6. **Raw Vite** (`npm run web:dev` alone) does **not** load `/.netlify/identity`; use **`VITE_DEV_SKIP_IDENTITY`** in `web/.env.local` to debug core parsing/UI, or use **`netlify dev`** once Identity is **enabled** on the linked site — see **Local debugging** above.
 
-- **Next implementation chunk (M2)**: Netlify Database + real `usage-ingest` persistence, idempotency, JWT verification, rate limits — see §8 in [`docs/HOSTED_ROLLOUT_PLAN.md`](docs/HOSTED_ROLLOUT_PLAN.md).
+- **Next implementation chunk (M3)**: verify real hosted telemetry end-to-end through authenticated `netlify dev` / Deploy Preview browser sessions, then begin `admin-stats` + admin-only reporting surfaces.
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`

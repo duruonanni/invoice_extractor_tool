@@ -13,6 +13,7 @@
     "web:build": "npm run web:gen-index && vite build",
     "web:preview": "npm run web:build && vite preview --host 127.0.0.1",
     "check": "node scripts/check.mjs",
+    "test:hosted": "node tests/usage_ingest.mjs",
     "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
     "test": "node tests/regression.mjs",

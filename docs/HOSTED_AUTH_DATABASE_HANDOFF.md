@@ -1,7 +1,7 @@
 # Handoff: Hosted Auth + Usage Database Direction
 
 Status: **Active direction**  
-Last updated: **2026-05-19**
+Last updated: **2026-05-20**
 
 This handoff supersedes the earlier "make `netlify-identity-widget.open()` work" track. Keep the old Identity login notes for historical debugging context, but do not continue investing in the iframe/widget modal as the long-term hosted login UX.
 
@@ -115,6 +115,7 @@ Do not store:
 3. Database schema
    - Migration for `user_profiles`.
    - Migration for `usage_events`.
+   - Migration for hashed ingest rate-limit buckets.
    - Unique key for `(user_sub, client_event_id)`.
 
 4. Local verification
@@ -135,10 +136,15 @@ Do not store:
 ## 2026-05-19 implementation notes
 
 - Hosted auth now uses `@netlify/identity` with an explicit email/password form.
+- Hosted auth normalizes email input to lowercase before signup/login so mixed-case addresses do not create avoidable login mismatches.
 - Signup success copy no longer mentions optional email confirmation; the Netlify project is configured with registration open and email confirmation not required.
 - `web/src/main.js` imports the core/parser/UI source as raw text and executes them in one shared scope. This is intentional: the offline product depends on a single-file global-state contract, and the hosted Vite bundle must preserve that contract until the core is deliberately refactored into real modules.
+- Hosted telemetry now sends the Netlify Identity JWT in the `Authorization` header while keeping same-origin cookie auth.
+- `netlify/functions/usage-ingest.mjs` now persists `user_profiles` + `usage_events`, enforces `(user_sub, client_event_id)` idempotency, and applies baseline per-user/per-IP rate limits via the `ingest_rate_limits` migration.
+- Added `tests/usage_ingest.mjs` to cover payload validation, idempotent duplicate submits, and rate-limit behavior without needing a live Netlify session.
 - Verified locally with raw Vite + `VITE_DEV_SKIP_IDENTITY=1`: uploading `CA01_STMT_BRIM_STATEMENT_EPRECAP0000073.PDF`, running verification, and showing the export button works without console errors.
 - Verified locally with linked `netlify dev`: Identity settings return JSON at `/.netlify/identity/settings`, invalid login shows a visible error, and `usage-ingest` returns `401` when unauthenticated.
+- Verified locally at repo level with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`.
 
 ## Historical documents
 

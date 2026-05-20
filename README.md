@@ -32,7 +32,7 @@ Use the project documents like this:
 ## Current Status
 
 - migration into `02_PROJECTS/codex_invoice_extractor_tool` within Studio is complete
-- current shipped version in source: `v3.12.38`
+- current shipped version in source: `v3.12.42`
 - project functionality has been verified after migration
 
 ## Daily Commands
@@ -41,6 +41,7 @@ Use the project documents like this:
 npm run build
 npm run release:sync
 npm run regression
+npm run test:hosted
 npm run version:bump
 node --check src/core/core.js
 node --check src/parsers/parsers.js
@@ -52,7 +53,7 @@ node --check src/ui/ui.js
 1. Read `SESSION_HANDOFF.md` before continuing active work.
 2. Reproduce against one concrete PDF.
 3. Fix as narrowly as possible.
-4. Run `npm run check`, `npm run regression`, and `npm run build`.
+4. Run `npm run check`, `npm run regression`, `npm run test:hosted`, and `npm run build`.
 5. If the release is intentionally ready, commit the change set.
 6. Let the git post-commit hook run `release:sync` by default.
 7. Update `SESSION_HANDOFF.md` if the current state materially changed.
