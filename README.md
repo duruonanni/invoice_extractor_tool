@@ -41,6 +41,7 @@ Use the project documents like this:
 npm run build
 npm run release:sync
 npm run regression
+npm run test:admin
 npm run test:hosted
 npm run test:hosted-e2e
 npm run version:bump
@@ -54,7 +55,7 @@ node --check src/ui/ui.js
 1. Read `SESSION_HANDOFF.md` before continuing active work.
 2. Reproduce against one concrete PDF.
 3. Fix as narrowly as possible.
-4. Run `npm run check`, `npm run regression`, `npm run test:hosted`, `npm run test:hosted-e2e`, and `npm run build`.
+4. Run `npm run check`, `npm run regression`, `npm run test:admin`, `npm run test:hosted`, `npm run test:hosted-e2e`, and `npm run build`.
 5. If the release is intentionally ready, commit the change set.
 6. Let the git post-commit hook run `release:sync` by default.
 7. Update `SESSION_HANDOFF.md` if the current state materially changed.
@@ -115,6 +116,8 @@ Regression fixtures are defined in `tests/fixtures.json`.
 
 Hosted telemetry checks:
 
+- `npm run test:admin`
+  - validates the `admin-stats` Function auth gate and aggregate response shape
 - `npm run test:hosted`
   - validates the `usage-ingest` Function logic in-process
 - `npm run test:hosted-e2e`

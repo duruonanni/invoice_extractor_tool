@@ -32,6 +32,12 @@ const authPassword = document.getElementById('hostedAuthPassword');
 const authSubmit = document.getElementById('hostedAuthSubmit');
 const authSignup = document.getElementById('hostedAuthSignup');
 const authStatus = document.getElementById('hostedAuthStatus');
+const adminStatsPanel = document.getElementById('adminStatsPanel');
+const adminStatsRefresh = document.getElementById('adminStatsRefresh');
+const adminStatsStatus = document.getElementById('adminStatsStatus');
+const adminStatsCards = document.getElementById('adminStatsCards');
+const adminTopUsers = document.getElementById('adminTopUsers');
+const adminMonthlyUsers = document.getElementById('adminMonthlyUsers');
 
 let currentAuthAction = 'login';
 let currentUser = null;
@@ -43,6 +49,19 @@ function setAuthStatus(message, tone = 'info') {
   authStatus.hidden = false;
   authStatus.className = `hosted-auth-status ${tone}`;
   authStatus.textContent = message;
+}
+
+function setAdminStatus(message, tone = 'info') {
+  if (!adminStatsStatus) return;
+  adminStatsStatus.hidden = false;
+  adminStatsStatus.className = `admin-stats-status ${tone}`;
+  adminStatsStatus.textContent = message;
+}
+
+function clearAdminStatus() {
+  if (!adminStatsStatus) return;
+  adminStatsStatus.hidden = true;
+  adminStatsStatus.textContent = '';
 }
 
 function clearAuthStatus() {
@@ -148,6 +167,10 @@ function bindAuthControls() {
       setHostedAccess(null);
     }
   });
+  adminStatsRefresh?.addEventListener('click', async e => {
+    e.preventDefault();
+    await refreshAdminStats();
+  });
 }
 
 function setHostedAccess(user) {
@@ -161,6 +184,16 @@ function setHostedAccess(user) {
     const email = user && user.email ? String(user.email) : '';
     authUserEmail.textContent = email;
     authUserEmail.title = email;
+  }
+  const isAdmin = hasAdminRole(user);
+  if (adminStatsPanel) adminStatsPanel.hidden = !(ok && isAdmin);
+  if (!ok || !isAdmin) {
+    if (adminStatsCards) adminStatsCards.innerHTML = '';
+    if (adminTopUsers) adminTopUsers.innerHTML = '';
+    if (adminMonthlyUsers) adminMonthlyUsers.innerHTML = '';
+    clearAdminStatus();
+  } else {
+    void refreshAdminStats();
   }
   if (typeof window.refreshUiLanguageLabels === 'function') window.refreshUiLanguageLabels();
 }
@@ -276,6 +309,96 @@ function structuredCloneSafe(value) {
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function hasAdminRole(user) {
+  if (!user) return false;
+  const appMeta = user.appMetadata || user.app_metadata || {};
+  const roles = []
+    .concat(Array.isArray(user.roles) ? user.roles : [])
+    .concat(Array.isArray(appMeta.roles) ? appMeta.roles : [])
+    .concat(typeof user.role === 'string' ? [user.role] : []);
+  return roles.some(role => ['admin', 'administrator'].includes(String(role).trim().toLowerCase()));
+}
+
+async function refreshAdminStats() {
+  if (!currentUser || !hasAdminRole(currentUser)) return;
+  setAdminStatus('Loading admin stats...', 'info');
+  if (adminStatsRefresh) adminStatsRefresh.disabled = true;
+  try {
+    const response = await fetch('/.netlify/functions/admin-stats', {
+      headers: { ...(getIdentityJwt() ? { Authorization: `Bearer ${getIdentityJwt()}` } : {}) },
+      credentials: 'include',
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || `admin-stats failed (${response.status})`);
+    }
+    renderAdminStats(payload);
+    setAdminStatus('Admin stats refreshed.', 'success');
+  } catch (err) {
+    setAdminStatus(normalizeError(err), 'error');
+    console.error('[admin-stats] failed', err);
+  } finally {
+    if (adminStatsRefresh) adminStatsRefresh.disabled = false;
+  }
+}
+
+function renderAdminStats(payload) {
+  const summary = payload.summary || {};
+  if (adminStatsCards) {
+    const cards = [
+      ['Events', summary.event_count ?? 0],
+      ['Users', summary.user_count ?? 0],
+      ['PDFs', summary.pdf_count ?? 0],
+      ['Pages', summary.total_pages ?? 0],
+      ['Issues', summary.issues_count ?? 0],
+      ['Warnings', summary.warnings_count ?? 0],
+    ];
+    adminStatsCards.innerHTML = cards
+      .map(([label, value]) => `<div class="admin-stat-card"><strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span></div>`)
+      .join('');
+  }
+  if (adminTopUsers) {
+    const topUsers = Array.isArray(payload.topUsers) ? payload.topUsers : [];
+    adminTopUsers.innerHTML = renderAdminList(
+      topUsers.map(row => ({
+        primary: row.user_sub,
+        secondary: `${row.pdf_count} PDFs • ${row.total_pages} pages`,
+        value: `${row.event_count} events`,
+      })),
+      'No user activity yet.',
+    );
+  }
+  if (adminMonthlyUsers) {
+    const monthly = Array.isArray(payload.monthlyUsers) ? payload.monthlyUsers : [];
+    adminMonthlyUsers.innerHTML = renderAdminList(
+      monthly.map(row => ({
+        primary: `${row.month} • ${row.user_sub}`,
+        secondary: `${row.pdf_count} PDFs • ${row.total_pages} pages`,
+        value: `${row.event_count} events`,
+      })),
+      'No monthly rollups yet.',
+    );
+  }
+}
+
+function renderAdminList(items, emptyText) {
+  if (!items.length) {
+    return `<div class="ib w">${escapeHtml(emptyText)}</div>`;
+  }
+  return `<div class="admin-list">${items
+    .map(item => `<div class="admin-list-item"><div><strong>${escapeHtml(item.primary)}</strong><span>${escapeHtml(item.secondary)}</span></div><strong>${escapeHtml(item.value)}</strong></div>`)
+    .join('')}</div>`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 async function initializeAuth() {

@@ -54,6 +54,28 @@ const hostedLoginPanel = `  <div id="hostedLoginScreen" class="hosted-login-scre
     </form>
   </div>
   <div id="hostedAppShell" hidden>
+    <section id="adminStatsPanel" class="admin-stats-panel" hidden>
+      <div class="admin-stats-head">
+        <div>
+          <div class="admin-stats-kicker">Admin</div>
+          <h2>Usage overview</h2>
+          <p>Read-only telemetry summary for the hosted validator.</p>
+        </div>
+        <button type="button" id="adminStatsRefresh" class="btn btn-p">Refresh stats</button>
+      </div>
+      <p id="adminStatsStatus" class="admin-stats-status" hidden></p>
+      <div id="adminStatsCards" class="admin-stats-cards"></div>
+      <div class="admin-stats-grid">
+        <section class="admin-stats-block">
+          <h3>Top users</h3>
+          <div id="adminTopUsers"></div>
+        </section>
+        <section class="admin-stats-block">
+          <h3>Monthly activity</h3>
+          <div id="adminMonthlyUsers"></div>
+        </section>
+      </div>
+    </section>
 `;
 
 const withLoginGate = withHdr.replace(

@@ -13,6 +13,8 @@ const files = [
   path.join(root, 'src', 'ui', 'ui.js'),
   path.join(root, 'tests', 'regression.mjs'),
   path.join(root, 'tests', 'usage_ingest.mjs'),
+  path.join(root, 'tests', 'admin_stats.mjs'),
+  path.join(root, 'netlify', 'functions', 'admin-stats.mjs'),
   path.join(root, 'netlify', 'functions', 'usage-ingest.mjs'),
 ];
 

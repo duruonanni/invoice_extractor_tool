@@ -19,8 +19,12 @@
   - hosted telemetry now exposes a lightweight in-page monitor (`window.__LIV_USAGE_MONITOR`) and retries failed sends up to 3 times with the same client event payload
   - added repo-level hosted telemetry coverage via `tests/usage_ingest.mjs`
   - added `tests/hosted_telemetry_e2e.mjs` to validate hosted login + sample PDF upload + verification + telemetry DB write end-to-end
+  - added `netlify/functions/admin-stats.mjs` with server-side admin-role enforcement and aggregate usage queries for summary, top users, monthly rows, and recent events
+  - hosted UI now renders a read-only admin stats panel for Identity users whose roles include `admin` / `Administrator`
+  - added `tests/admin_stats.mjs` to verify non-admin rejection and admin aggregate response shape
   - verified locally with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`
   - verified locally with `netlify dev` + `HOSTED_E2E_BASE_URL=http://localhost:8888 npm run test:hosted-e2e`: new account signup, sample PDF upload, telemetry success event, and matching `usage_events` row all passed
+  - verified locally for M4 with `npm run test:admin`, `npm run test:hosted`, and `npm run web:build`
 - **Historical note**: [`docs/IDENTITY_LOGIN_HANDOFF.md`](docs/IDENTITY_LOGIN_HANDOFF.md) is now superseded as implementation direction and kept only as old-widget debugging context.
 
 ## Hosted roadmap (M2 in progress)
@@ -35,6 +39,7 @@
   - `netlify/database/migrations/0001_create-usage-tables/` — `user_profiles` + `usage_events`.
   - `netlify/database/migrations/0002_add-ingest-rate-limits/` — hashed per-scope request buckets for baseline anti-abuse controls.
   - `tests/usage_ingest.mjs` — local handler coverage for payload validation, idempotency, and rate limiting.
+  - `tests/admin_stats.mjs` — local handler coverage for admin authorization and aggregate response shape.
   - Hosted UX: **Netlify Identity** — **single** sign-in entry (`netlifyIdentity.open()`); dedicated **login panel** until session exists; then full validator workspace (`#hostedAppShell`). No `data-netlify-identity-button` on duplicate controls. For **pure Vite** local runs, optional [`web/.env.example`](./web/.env.example) → `web/.env.local` with `VITE_DEV_SKIP_IDENTITY=1` bypasses the gate (**development only**, see **Local debugging** below).
 - **Login silent-click mitigation landed (2026-05-13)**: `web/src/main.js` now treats `Sign in` as **fail-open + visible diagnostics** instead of waiting forever for `init`:
   - click attempts `netlifyIdentity.open('login')` immediately
@@ -67,7 +72,7 @@
 6. **Raw Vite** (`npm run web:dev` alone) does **not** load `/.netlify/identity`; use **`VITE_DEV_SKIP_IDENTITY`** in `web/.env.local` to debug core parsing/UI, or use **`netlify dev`** once Identity is **enabled** on the linked site — see **Local debugging** above.
 
 - **Next implementation chunk (M3)**: verify real hosted telemetry end-to-end through authenticated `netlify dev` / Deploy Preview browser sessions, then begin `admin-stats` + admin-only reporting surfaces.
-- **Next implementation chunk (M4)**: `admin-stats` Function + read-only admin UI + non-admin rejection coverage + monthly aggregate validation.
+- **Next implementation chunk (M5)**: operator docs for Netlify setup/env matrix/retention, plus optional admin UI polish (time filters, empty/error states, and richer rollup views).
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`
