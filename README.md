@@ -42,6 +42,7 @@ npm run build
 npm run release:sync
 npm run regression
 npm run test:hosted
+npm run test:hosted-e2e
 npm run version:bump
 node --check src/core/core.js
 node --check src/parsers/parsers.js
@@ -53,7 +54,7 @@ node --check src/ui/ui.js
 1. Read `SESSION_HANDOFF.md` before continuing active work.
 2. Reproduce against one concrete PDF.
 3. Fix as narrowly as possible.
-4. Run `npm run check`, `npm run regression`, `npm run test:hosted`, and `npm run build`.
+4. Run `npm run check`, `npm run regression`, `npm run test:hosted`, `npm run test:hosted-e2e`, and `npm run build`.
 5. If the release is intentionally ready, commit the change set.
 6. Let the git post-commit hook run `release:sync` by default.
 7. Update `SESSION_HANDOFF.md` if the current state materially changed.
@@ -111,6 +112,17 @@ node scripts/bump_release_version.mjs 3.13.0
 ## Testing
 
 Regression fixtures are defined in `tests/fixtures.json`.
+
+Hosted telemetry checks:
+
+- `npm run test:hosted`
+  - validates the `usage-ingest` Function logic in-process
+- `npm run test:hosted-e2e`
+  - validates hosted login + PDF upload + verification + telemetry write end-to-end
+  - on Windows, the most reliable flow is:
+    1. start `netlify dev` in one terminal
+    2. run `HOSTED_E2E_BASE_URL=http://localhost:8888` plus `HOSTED_E2E_DB_URL=<postgres://localhost:PORT/postgres>` when you want the E2E to reuse that running local stack
+  - without env overrides, the script will try to start its own local `netlify dev`
 
 The repository does not currently include the approved PDF samples. By default, regression looks for them under Studio:
 

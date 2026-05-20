@@ -14,6 +14,7 @@
     "web:preview": "npm run web:build && vite preview --host 127.0.0.1",
     "check": "node scripts/check.mjs",
     "test:hosted": "node tests/usage_ingest.mjs",
+    "test:hosted-e2e": "node tests/hosted_telemetry_e2e.mjs",
     "release:sync": "node scripts/release_sync.mjs",
     "regression": "node tests/regression.mjs",
     "test": "node tests/regression.mjs",

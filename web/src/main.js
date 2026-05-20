@@ -35,6 +35,8 @@ const authStatus = document.getElementById('hostedAuthStatus');
 
 let currentAuthAction = 'login';
 let currentUser = null;
+const USAGE_EVENT_MAX_ATTEMPTS = 3;
+const usageMonitor = getUsageMonitor();
 
 function setAuthStatus(message, tone = 'info') {
   if (!authStatus) return;
@@ -165,23 +167,62 @@ function setHostedAccess(user) {
 
 async function sendUsageEvent(detail) {
   if (!currentUser || !detail) return;
-  try {
-    const jwt = getIdentityJwt();
-    const response = await fetch('/.netlify/functions/usage-ingest', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-      },
-      credentials: 'include',
-      body: JSON.stringify(detail),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(text || `usage-ingest failed (${response.status})`);
+  usageMonitor.queued += 1;
+  usageMonitor.lastQueued = structuredCloneSafe(detail);
+  for (let attempt = 1; attempt <= USAGE_EVENT_MAX_ATTEMPTS; attempt += 1) {
+    usageMonitor.attempted += 1;
+    usageMonitor.lastAttempt = {
+      attempt,
+      payload: structuredCloneSafe(detail),
+      occurredAt: new Date().toISOString(),
+    };
+    try {
+      const jwt = getIdentityJwt();
+      const response = await fetch('/.netlify/functions/usage-ingest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify(detail),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(text || `usage-ingest failed (${response.status})`);
+      }
+      usageMonitor.succeeded += 1;
+      usageMonitor.lastSuccess = {
+        attempt,
+        payload: structuredCloneSafe(detail),
+        occurredAt: new Date().toISOString(),
+      };
+      window.dispatchEvent(
+        new CustomEvent('liv:usage-ingest-success', {
+          detail: { attempt, payload: structuredCloneSafe(detail) },
+        }),
+      );
+      return;
+    } catch (err) {
+      usageMonitor.failed += 1;
+      usageMonitor.lastFailure = {
+        attempt,
+        message: normalizeError(err),
+        payload: structuredCloneSafe(detail),
+        occurredAt: new Date().toISOString(),
+      };
+      if (attempt >= USAGE_EVENT_MAX_ATTEMPTS) {
+        window.dispatchEvent(
+          new CustomEvent('liv:usage-ingest-failure', {
+            detail: { attempt, message: normalizeError(err), payload: structuredCloneSafe(detail) },
+          }),
+        );
+        console.error('[usage-ingest] failed', err);
+        return;
+      }
+      usageMonitor.retried += 1;
+      await delay(attempt * 400);
     }
-  } catch (err) {
-    console.error('[usage-ingest] failed', err);
   }
 }
 
@@ -197,6 +238,44 @@ function getIdentityJwt() {
   } catch (_) {
     return value;
   }
+}
+
+function getUsageMonitor() {
+  if (typeof window === 'undefined') {
+    return {
+      queued: 0,
+      attempted: 0,
+      retried: 0,
+      succeeded: 0,
+      failed: 0,
+      lastQueued: null,
+      lastAttempt: null,
+      lastSuccess: null,
+      lastFailure: null,
+    };
+  }
+  if (!window.__LIV_USAGE_MONITOR) {
+    window.__LIV_USAGE_MONITOR = {
+      queued: 0,
+      attempted: 0,
+      retried: 0,
+      succeeded: 0,
+      failed: 0,
+      lastQueued: null,
+      lastAttempt: null,
+      lastSuccess: null,
+      lastFailure: null,
+    };
+  }
+  return window.__LIV_USAGE_MONITOR;
+}
+
+function structuredCloneSafe(value) {
+  return value ? JSON.parse(JSON.stringify(value)) : value;
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function initializeAuth() {

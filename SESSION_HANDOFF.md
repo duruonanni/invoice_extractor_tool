@@ -16,8 +16,11 @@
   - normalized hosted auth email input to lowercase before signup/login to avoid mixed-case login failures
   - hosted telemetry requests now send the Netlify Identity JWT via `Authorization: Bearer <token>` while still using same-origin cookies
   - `netlify/functions/usage-ingest.mjs` now writes `user_profiles` + `usage_events`, preserves `(user_sub, client_event_id)` idempotency, and applies baseline per-user/per-IP rate limits backed by `ingest_rate_limits`
+  - hosted telemetry now exposes a lightweight in-page monitor (`window.__LIV_USAGE_MONITOR`) and retries failed sends up to 3 times with the same client event payload
   - added repo-level hosted telemetry coverage via `tests/usage_ingest.mjs`
+  - added `tests/hosted_telemetry_e2e.mjs` to validate hosted login + sample PDF upload + verification + telemetry DB write end-to-end
   - verified locally with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`
+  - verified locally with `netlify dev` + `HOSTED_E2E_BASE_URL=http://localhost:8888 npm run test:hosted-e2e`: new account signup, sample PDF upload, telemetry success event, and matching `usage_events` row all passed
 - **Historical note**: [`docs/IDENTITY_LOGIN_HANDOFF.md`](docs/IDENTITY_LOGIN_HANDOFF.md) is now superseded as implementation direction and kept only as old-widget debugging context.
 
 ## Hosted roadmap (M2 in progress)
@@ -64,6 +67,7 @@
 6. **Raw Vite** (`npm run web:dev` alone) does **not** load `/.netlify/identity`; use **`VITE_DEV_SKIP_IDENTITY`** in `web/.env.local` to debug core parsing/UI, or use **`netlify dev`** once Identity is **enabled** on the linked site — see **Local debugging** above.
 
 - **Next implementation chunk (M3)**: verify real hosted telemetry end-to-end through authenticated `netlify dev` / Deploy Preview browser sessions, then begin `admin-stats` + admin-only reporting surfaces.
+- **Next implementation chunk (M4)**: `admin-stats` Function + read-only admin UI + non-admin rejection coverage + monthly aggregate validation.
 
 ## Current State
 - Product name: `Lenovo EaaS Invoice Validator`

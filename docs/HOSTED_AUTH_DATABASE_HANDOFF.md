@@ -142,9 +142,12 @@ Do not store:
 - Hosted telemetry now sends the Netlify Identity JWT in the `Authorization` header while keeping same-origin cookie auth.
 - `netlify/functions/usage-ingest.mjs` now persists `user_profiles` + `usage_events`, enforces `(user_sub, client_event_id)` idempotency, and applies baseline per-user/per-IP rate limits via the `ingest_rate_limits` migration.
 - Added `tests/usage_ingest.mjs` to cover payload validation, idempotent duplicate submits, and rate-limit behavior without needing a live Netlify session.
+- Hosted telemetry now exposes `window.__LIV_USAGE_MONITOR` and retries failed sends up to 3 times with the same event payload, which keeps the client UUID retry-safe while making local diagnostics easier.
+- Added `tests/hosted_telemetry_e2e.mjs` to exercise the real hosted path: local Netlify dev, signup/login, sample PDF upload, verification completion, telemetry success, and database confirmation.
 - Verified locally with raw Vite + `VITE_DEV_SKIP_IDENTITY=1`: uploading `CA01_STMT_BRIM_STATEMENT_EPRECAP0000073.PDF`, running verification, and showing the export button works without console errors.
 - Verified locally with linked `netlify dev`: Identity settings return JSON at `/.netlify/identity/settings`, invalid login shows a visible error, and `usage-ingest` returns `401` when unauthenticated.
 - Verified locally at repo level with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`.
+- Verified locally for M3 with `netlify dev` plus `HOSTED_E2E_BASE_URL=http://localhost:8888 npm run test:hosted-e2e`: telemetry success was observed in-browser and confirmed in `usage_events`.
 
 ## Historical documents
 
