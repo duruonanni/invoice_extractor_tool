@@ -28,6 +28,7 @@ await run();
 
 async function run() {
   testValidateUsagePayload();
+  await testHandlesMissingDatabase();
   await testSuccessfulInsertAndDedup();
   await testRateLimit();
   console.log('usage-ingest tests PASS');
@@ -40,6 +41,13 @@ function testValidateUsagePayload() {
   const bad = validateUsagePayload({ ...VALID_PAYLOAD, clientEventId: 'not-a-uuid' });
   assert.equal(bad.ok, false);
   assert.match(bad.error, /clientEventId/);
+}
+
+async function testHandlesMissingDatabase() {
+  __resetTestOverrides();
+  const response = await handler(createEvent(VALID_PAYLOAD), createContext());
+  assert.equal(response.statusCode, 500);
+  assert.deepEqual(JSON.parse(response.body), { error: 'database_unavailable' });
 }
 
 async function testSuccessfulInsertAndDedup() {

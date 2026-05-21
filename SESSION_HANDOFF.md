@@ -1,6 +1,6 @@
 # Session Handoff
 
-## Current hosted auth/database direction (2026-05-20)
+## Current hosted auth/database direction (2026-05-21)
 - **Active handoff**: [`docs/HOSTED_AUTH_DATABASE_HANDOFF.md`](docs/HOSTED_AUTH_DATABASE_HANDOFF.md).
 - **Decision**: keep Netlify Identity as the authentication provider, but stop treating the old `netlify-identity-widget` iframe/modal as the primary UX path. Use Netlify Database only for application records (`user_profiles`, `usage_events`, later rollups/audit logs), not for custom password/session management.
 - **Reason**: Identity is enabled for the Netlify project and the endpoint exists, but raw Vite local dev (`127.0.0.1:5173`) cannot reliably test remote Identity because cross-origin settings requests can fail in-browser. The old widget path also produced silent-click UX on production when the latest local diagnostics were not deployed.
@@ -10,7 +10,13 @@
   - then use a Netlify Deploy Preview before production
 - **Local Netlify link**: this workspace is linked to Netlify site id `1b710186-07cb-4f14-a4ad-a3228b0fe93b` (`invoice-extractor-tool`), so `netlify dev` can proxy real `/.netlify/identity/settings` locally.
 - **Current local smoke**: `netlify dev` at `http://localhost:8888/` loads the built hosted app, `/.netlify/identity/settings` returns JSON, and an invalid login attempt shows a visible form error instead of a silent click.
-- **Latest hosted fix (2026-05-20)**:
+- **Latest hosted fix (2026-05-21)**:
+  - added a persistent English privacy banner at the top of `#hostedAppShell` after login (`hosted_privacy_*` i18n keys; `.bs.info` styling; injected via `scripts/gen_web_index.mjs`)
+  - login-page hosted copy (`hosted_login_*`) now lives in `src/core/core.js` i18n alongside the workspace banner text
+  - `usage-ingest` and `admin-stats` now catch database client init failures and return `500` with `{ error: 'database_unavailable' }` instead of an unhandled exception
+  - added tests for the missing-database path in `tests/usage_ingest.mjs` and `tests/admin_stats.mjs`
+  - verified locally: privacy banner visible in hosted workspace after sign-in; `npm run check`, `npm run test:hosted`, `npm run test:admin`, and `npm run web:build` pass
+- **Previous hosted fix (2026-05-20)**:
   - removed the stale signup success copy that said "If confirmation is required..." after Identity was configured with email confirmation not required
   - fixed hosted PDF upload/runtime parsing by executing `src/core/core.js`, `src/parsers/parsers.js`, and `src/ui/ui.js` in one shared scope from `web/src/main.js`; this preserves the offline single-file global-state contract (`eid`, `fileEntries`, `analysisResults`, parser helpers) under Vite
   - normalized hosted auth email input to lowercase before signup/login to avoid mixed-case login failures
@@ -91,6 +97,7 @@
 - Future work should stay incremental and regression-driven.
 - Hosted login troubleshooting status:
   - silent no-feedback `Sign in` path is mitigated in UI logic (`web/src/main.js`)
+  - hosted workspace privacy assurance banner is shipped (English-only copy; local parsing + metadata-only telemetry)
   - final closure still needs live-site verification on Netlify deploy (`Sign in` must open modal or render actionable notice)
 - Error-review UI now supports an error-focused detail mode:
   - root-level error invoice chips for statements with row-level issues

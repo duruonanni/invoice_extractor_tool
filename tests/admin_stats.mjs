@@ -11,6 +11,7 @@ await run();
 async function run() {
   await testRequiresUser();
   await testRejectsNonAdmin();
+  await testHandlesMissingDatabase();
   await testReturnsStatsForAdmin();
   console.log('admin-stats tests PASS');
 }
@@ -26,6 +27,16 @@ async function testRejectsNonAdmin() {
     { clientContext: { user: { sub: 'u-1', roles: ['viewer'] } } },
   );
   assert.equal(response.statusCode, 403);
+}
+
+async function testHandlesMissingDatabase() {
+  __resetTestOverrides();
+  const response = await handler(
+    { httpMethod: 'GET', queryStringParameters: {} },
+    { clientContext: { user: { sub: 'admin-1', roles: ['admin'] } } },
+  );
+  assert.equal(response.statusCode, 500);
+  assert.deepEqual(JSON.parse(response.body), { error: 'database_unavailable' });
 }
 
 async function testReturnsStatsForAdmin() {

@@ -1,7 +1,7 @@
 # Handoff: Hosted Auth + Usage Database Direction
 
 Status: **Active direction**  
-Last updated: **2026-05-20**
+Last updated: **2026-05-21**
 
 This handoff supersedes the earlier "make `netlify-identity-widget.open()` work" track. Keep the old Identity login notes for historical debugging context, but do not continue investing in the iframe/widget modal as the long-term hosted login UX.
 
@@ -152,6 +152,14 @@ Do not store:
 - Verified locally at repo level with `npm run check`, `npm run test:hosted`, `npm run web:build`, `npm run build`, and `npm run regression`.
 - Verified locally for M3 with `netlify dev` plus `HOSTED_E2E_BASE_URL=http://localhost:8888 npm run test:hosted-e2e`: telemetry success was observed in-browser and confirmed in `usage_events`.
 - Verified locally for M4 with `npm run test:admin`, `npm run test:hosted`, and `npm run web:build`.
+
+## 2026-05-21 implementation notes
+
+- Hosted workspace now shows a persistent English privacy banner at the top of `#hostedAppShell` after login. Copy covers local PDF parsing/export, no invoice upload, and metadata-only telemetry after verification.
+- Banner markup is injected in `scripts/gen_web_index.mjs`; styling uses a new `.bs.info` variant in `src/index.template.html`; strings live in `src/core/core.js` as `hosted_privacy_*` and `hosted_login_*` keys.
+- `usage-ingest` and `admin-stats` wrap `getDatabaseClient()` in try/catch and return `{ error: 'database_unavailable' }` when the database client cannot be initialized.
+- Added missing-database handler tests in `tests/usage_ingest.mjs` and `tests/admin_stats.mjs`.
+- Verified locally: hosted workspace banner after sign-in; `npm run check`, `npm run test:hosted`, `npm run test:admin`, and `npm run web:build`.
 
 ## Historical documents
 

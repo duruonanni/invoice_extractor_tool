@@ -76,7 +76,13 @@ const I={
     country_filter_show_all:'Show all countries',
     country_filter_show_issue_only:'Show issue countries only',
     price_gap_anomalies:'price gap anomalies',
-    drop_zone_aria:'Upload Lenovo EaaS invoice PDFs'
+    drop_zone_aria:'Upload Lenovo EaaS invoice PDFs',
+    hosted_login_title:'Sign in',
+    hosted_login_blurb:'PDF parsing and Excel export run in your browser. Invoice content is not uploaded to the server. Sign in to use the hosted validator.',
+    hosted_login_btn:'Sign in',
+    hosted_privacy_title:'Your data stays in your browser',
+    hosted_privacy_desc:'PDF parsing and Excel export run entirely on your device. Invoice content is never uploaded. After verification, only anonymous usage counts (for example files processed and outcome) are sent — no filenames, invoice numbers, or line items.',
+    hosted_privacy_side:'Local-first'
   },
   zh:{},
   es:{}

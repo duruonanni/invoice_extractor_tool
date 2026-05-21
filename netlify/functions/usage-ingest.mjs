@@ -73,7 +73,13 @@ export const handler = async (event, context) => {
     return json(400, { error: 'invalid_payload', detail: validated.error });
   }
 
-  const db = getDatabaseClient();
+  let db;
+  try {
+    db = getDatabaseClient();
+  } catch (err) {
+    console.error('[usage-ingest] database init failed', err);
+    return json(500, { error: 'database_unavailable' });
+  }
   const ipAddress = getClientIp(event);
   try {
     const userLimit = await enforceRateLimit(db, 'user', user.sub, RATE_LIMIT_USER_MAX);

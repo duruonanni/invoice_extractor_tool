@@ -54,6 +54,13 @@ const hostedLoginPanel = `  <div id="hostedLoginScreen" class="hosted-login-scre
     </form>
   </div>
   <div id="hostedAppShell" hidden>
+    <section id="hostedPrivacyBanner" class="bs info hosted-privacy-banner">
+      <div>
+        <div class="bs-title" data-t="hosted_privacy_title">Your data stays in your browser</div>
+        <div class="bs-desc" data-t="hosted_privacy_desc">PDF parsing and Excel export run entirely on your device. Invoice content is never uploaded. After verification, only anonymous usage counts (for example files processed and outcome) are sent — no filenames, invoice numbers, or line items.</div>
+      </div>
+      <div class="bs-side" data-t="hosted_privacy_side">Local-first</div>
+    </section>
     <section id="adminStatsPanel" class="admin-stats-panel" hidden>
       <div class="admin-stats-head">
         <div>

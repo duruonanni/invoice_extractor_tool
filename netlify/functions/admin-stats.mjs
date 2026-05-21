@@ -26,7 +26,13 @@ export const handler = async (event, context) => {
     return json(400, { error: 'invalid_query', detail: range.error });
   }
 
-  const db = getDatabaseClient();
+  let db;
+  try {
+    db = getDatabaseClient();
+  } catch (err) {
+    console.error('[admin-stats] database init failed', err);
+    return json(500, { error: 'database_unavailable' });
+  }
   try {
     const [summaryRes, topUsersRes, monthlyRes, recentRes] = await Promise.all([
       db.pool.query(
